@@ -21,18 +21,14 @@ def group_live_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def worker_private_keyboard() -> ReplyKeyboardMarkup:
-    """Shaxsiy chat — tez zonalar."""
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=BTN_ZONES_MENU)]],
-        resize_keyboard=True,
-    )
-
-
-def masul_private_keyboard() -> ReplyKeyboardMarkup:
+def private_main_keyboard() -> ReplyKeyboardMarkup:
+    """Shaxsiy chat — Boshlash, Yakunlash, Zonalar."""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=BTN_START_MOVE)],
+            [
+                KeyboardButton(text=BTN_START_MOVE),
+                KeyboardButton(text=BTN_FINISH),
+            ],
             [KeyboardButton(text=BTN_ZONES_MENU)],
         ],
         resize_keyboard=True,

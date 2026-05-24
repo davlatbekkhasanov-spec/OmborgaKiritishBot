@@ -9,7 +9,7 @@ from aiogram.types import Message
 import app_context
 from config import is_admin, settings
 import storage
-from keyboards import group_live_keyboard, masul_private_keyboard, worker_private_keyboard
+from keyboards import group_live_keyboard, private_main_keyboard
 from texts import BTN_START_MOVE, BTN_ZONES_MENU
 from ui import group_live_card, welcome_card, worker_hint_card, zones_list_card
 from time_util import fmt_hm, now_dt
@@ -28,19 +28,17 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
     user = message.from_user
     name = user.full_name if user else "Mehmon"
     uid = user.id if user else 0
+    kb = private_main_keyboard()
     if is_admin(uid):
-        await message.answer(
-            welcome_card(is_masul=True, name=name),
-            parse_mode="HTML",
-            reply_markup=masul_private_keyboard(),
-        )
-        return
-
-    await message.answer(
-        worker_hint_card(name=name, session_active=storage.has_active_session()),
-        parse_mode="HTML",
-        reply_markup=worker_private_keyboard(),
-    )
+        text = welcome_card(is_masul=True, name=name)
+    else:
+        text = worker_hint_card(name=name, session_active=storage.has_active_session())
+        if settings()["admin_ids"]:
+            text += (
+                f"\n\n<i>Mas'ul bo'lsangiz, Railway da "
+                f"<code>ADMIN_IDS={uid}</code> qo'shing.</i>"
+            )
+    await message.answer(text, parse_mode="HTML", reply_markup=kb)
 
 
 async def cmd_zones(message: Message) -> None:
@@ -64,7 +62,9 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
 
     if cfg["admin_ids"] and not is_admin(uid):
         return await message.answer(
-            "⛔  Faqat <b>mas'ul/admin</b> jarayonni boshlaydi.",
+            "⛔  Faqat <b>mas'ul/admin</b> jarayonni boshlaydi.\n"
+            f"Sizning ID: <code>{uid}</code>\n"
+            "Railway → <b>ADMIN_IDS</b> ga qo'shing.",
             parse_mode="HTML",
         )
 
@@ -111,8 +111,10 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
     await message.answer(
         f"✅  <b>Jarayon #{sid} boshlandi</b>\n"
         f"🕒  {fmt_hm(start_time)}\n\n"
-        "Guruhda <b>LIVE</b> panel yuborildi.",
+        "Guruhda <b>LIVE</b> panel yuborildi.\n"
+        "Yakunlash: <b>🏁 Yakunlash</b> tugmasi.",
         parse_mode="HTML",
+        reply_markup=private_main_keyboard(),
     )
 
 

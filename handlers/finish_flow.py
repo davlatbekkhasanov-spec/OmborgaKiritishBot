@@ -12,35 +12,33 @@ from config import settings
 import storage
 from keyboards import CB_FINISH
 from states import FinishStates
+from texts import BTN_FINISH
 from ui import final_report_card, photo_album_caption, photo_prompt
 
 router = Router(name="finish")
 
 
-@router.callback_query(F.data == CB_FINISH)
-async def finish_start(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
-    user = callback.from_user
-    if not user:
-        return
+async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
+    """
+  Yakunlashni boshlaydi.
+  Muvaffaqiyat: None qaytaradi.
+  Xato: foydalanuvchiga matn.
+    """
     if not storage.has_active_session():
-        await callback.answer("Jarayon aktiv emas.", show_alert=True)
-        return
-    if not storage.can_manage(user.id):
-        await callback.answer("Faqat mas'ul/admin.", show_alert=True)
-        return
+        return "⚠️  Aktiv jarayon yo'q. Avval <b>Boshlash</b> bosing."
+    if not storage.can_manage(user_id):
+        return "⛔  <b>Yakunlash</b> faqat mas'ul/admin uchun."
     if storage.active_trips:
-        await callback.answer("Ochiq reyslar bor.", show_alert=True)
-        return
+        return "⚠️  Ochiq reyslar bor — avval QR skaner qiling."
 
     storage.active_session["status"] = "finishing"
     if app_context.ticker:
         app_context.ticker.stop()
-    await callback.answer()
 
     await state.set_state(FinishStates.waiting_ombor_photo)
     try:
         await bot.send_message(
-            user.id,
+            user_id,
             photo_prompt(
                 1,
                 2,
@@ -50,10 +48,31 @@ async def finish_start(callback: CallbackQuery, state: FSMContext, bot: Bot) -> 
             parse_mode="HTML",
         )
     except Exception:
-        if callback.message:
-            await callback.message.answer(
-                "Shaxsiy chatda botni /start qiling, keyin qayta «Yakunlash».",
-            )
+        return (
+            "Bot bilan shaxsiy chatda /start bosing, "
+            "keyin qayta <b>Yakunlash</b> tugmasini bosing."
+        )
+    return None
+
+
+@router.callback_query(F.data == CB_FINISH)
+async def finish_from_group(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    user = callback.from_user
+    if not user:
+        return
+    err = await begin_finish(user.id, bot, state)
+    if err:
+        await callback.answer(err.replace("<b>", "").replace("</b>", ""), show_alert=True)
+        return
+    await callback.answer()
+
+
+@router.message(F.text == BTN_FINISH)
+async def finish_from_private(message: Message, state: FSMContext, bot: Bot) -> None:
+    uid = message.from_user.id if message.from_user else 0
+    err = await begin_finish(uid, bot, state)
+    if err:
+        await message.answer(err, parse_mode="HTML")
 
 
 @router.message(StateFilter(FinishStates.waiting_ombor_photo), F.photo)
