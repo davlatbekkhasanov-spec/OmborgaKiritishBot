@@ -1,32 +1,47 @@
-"""Hisob-kitob — final hisobot."""
+"""Hisob-kitob — UI uchun strukturalangan."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 import storage
-from time_util import fmt_distance_m, fmt_duration_long, fmt_duration_short
+from time_util import fmt_distance_m, fmt_duration, fmt_duration_short, now_dt
 
 
-def _session_end() -> datetime:
-    return datetime.now()
+@dataclass
+class SessionMetrics:
+    process_sec: int
+    person_hours_sec: int
+    total_trips: int
+    total_distance: int
+    avg_trip_sec: int
+    headcount: int
+    open_trips: int
 
 
-def process_duration_sec() -> int:
+def session_metrics(end: datetime | None = None) -> SessionMetrics:
+    end = end or now_dt()
     sess = storage.active_session
-    if not sess:
-        return 0
-    start = sess["start_time"]
-    return max(0, int((_session_end() - start).total_seconds()))
-
-
-def person_hours_sec() -> int:
-    end = _session_end()
-    total = 0
+    proc = 0
+    if sess:
+        proc = max(0, int((end - sess["start_time"]).total_seconds()))
+    ph = 0
     for p in storage.participants.values():
-        total += max(0, int((end - p["join_time"]).total_seconds()))
-    return total
+        ph += max(0, int((end - p["join_time"]).total_seconds()))
+    trips = storage.trips
+    total_dist = sum(t["distance_meter"] for t in trips)
+    avg = sum(t["duration_sec"] for t in trips) // len(trips) if trips else 0
+    return SessionMetrics(
+        process_sec=proc,
+        person_hours_sec=ph,
+        total_trips=len(trips),
+        total_distance=total_dist,
+        avg_trip_sec=avg,
+        headcount=len(storage.participants),
+        open_trips=len(storage.active_trips),
+    )
 
 
 def worker_stats(user_id: int) -> dict[str, Any]:
@@ -52,57 +67,9 @@ def worker_stats(user_id: int) -> dict[str, Any]:
     }
 
 
-def build_final_report() -> str:
-    sess = storage.active_session
-    if not sess:
-        return "Sessiya yo'q"
-
-    proc_sec = process_duration_sec()
-    total_trips = len(storage.trips)
-    total_dist = sum(t["distance_meter"] for t in storage.trips)
-    avg_trip = (
-        sum(t["duration_sec"] for t in storage.trips) // total_trips
-        if total_trips
-        else 0
-    )
-
-    lines = [
-        "📊 OMBORGA KIRITISH YAKUNLANDI",
-        "",
-        f"⏱ Jarayon vaqti: {fmt_duration_long(proc_sec)}",
-        f"👥 Qatnashganlar: {len(storage.participants)}",
-        f"🛠 Jami odam-soat: {fmt_duration_long(person_hours_sec())}",
-        "",
-        f"📦 Jami reys: {total_trips}",
-        f"📏 Jami masofa: {fmt_distance_m(total_dist)}",
-        f"⏱ O'rtacha reys: {fmt_duration_long(avg_trip)}",
-        "",
-        "👷 Ishchilar:",
-    ]
-
-    ranked = sorted(
+def ranked_workers() -> list[dict[str, Any]]:
+    return sorted(
         storage.participants.values(),
-        key=lambda p: worker_stats(p["user_id"])["count"],
+        key=lambda p: (worker_stats(p["user_id"])["count"], worker_stats(p["user_id"])["total_distance"]),
         reverse=True,
     )
-    for i, p in enumerate(ranked, 1):
-        ws = worker_stats(p["user_id"])
-        if ws["count"]:
-            lines.append(
-                f"{i}. {p['full_name']} — {ws['count']} reys / "
-                f"{fmt_distance_m(ws['total_distance'])} / "
-                f"avg {fmt_duration_short(ws['avg_time'])}"
-            )
-        else:
-            lines.append(f"{i}. {p['full_name']} — reys yo'q")
-
-    ph = storage.photos
-    lines.extend(
-        [
-            "",
-            f"📸 Boshlang'ich rasm: {'✅' if ph.get('boshlangich') else '❌'}",
-            f"📸 Ombordagi rasm: {'✅' if ph.get('ombor') else '❌'}",
-            f"📸 Bo'shagan joy rasm: {'✅' if ph.get('bosh_joy') else '❌'}",
-        ]
-    )
-    return "\n".join(lines)

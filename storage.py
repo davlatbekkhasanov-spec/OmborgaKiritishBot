@@ -21,6 +21,7 @@ active_trips: dict[int, dict[str, Any]] = {}
 photos: dict[str, str] = {}
 
 _trip_id = 0
+_session_id = 0
 
 
 def reset_session() -> None:
@@ -31,6 +32,12 @@ def reset_session() -> None:
     active_trips.clear()
     photos.clear()
     _trip_id = 0
+
+
+def next_session_id() -> int:
+    global _session_id
+    _session_id += 1
+    return _session_id
 
 
 def has_active_session() -> bool:
@@ -126,11 +133,7 @@ def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str]:
     }
     trips.append(record)
     del active_trips[user_id]
-    return True, (
-        f"✅ Reys yakunlandi\n"
-        f"📍 {zone['zone_name']} ({zone['distance_meter']}m)\n"
-        f"⏱ {duration_sec // 60}:{duration_sec % 60:02d}"
-    )
+    return True, record
 
 
 def parse_zone_payload(text: str | None) -> str | None:

@@ -1,8 +1,26 @@
-"""Vaqt va masofa formatlash."""
+"""Vaqt formatlash."""
 
 from __future__ import annotations
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from config import settings
+
+
+def _tz() -> ZoneInfo:
+    try:
+        return ZoneInfo(settings()["tz"])
+    except Exception:
+        return ZoneInfo("Asia/Tashkent")
+
+
+def now_dt() -> datetime:
+    return datetime.now(_tz())
+
+
+def display_now() -> str:
+    return now_dt().strftime("%d.%m.%Y  %H:%M")
 
 
 def fmt_hm(dt: datetime) -> str:
@@ -10,7 +28,7 @@ def fmt_hm(dt: datetime) -> str:
 
 
 def fmt_elapsed(join_time: datetime, now: datetime | None = None) -> str:
-    now = now or datetime.now()
+    now = now or now_dt()
     sec = max(0, int((now - join_time).total_seconds()))
     h, rem = divmod(sec, 3600)
     m, s = divmod(rem, 60)
@@ -19,7 +37,7 @@ def fmt_elapsed(join_time: datetime, now: datetime | None = None) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def fmt_duration_long(sec: int) -> str:
+def fmt_duration(sec: int) -> str:
     sec = max(0, int(sec))
     h, rem = divmod(sec, 3600)
     m, s = divmod(rem, 60)
