@@ -2,19 +2,30 @@
 
 from __future__ import annotations
 
+import logging
+
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 import app_context
-from config import is_admin, settings
+from config import get_group_id, is_admin, settings
 import storage
 from keyboards import group_live_keyboard, private_main_keyboard
+from services.group_check import (
+    GroupConfigError,
+    group_fix_message,
+    is_group_chat,
+    parse_group_id_hint,
+    resolve_target_group_id,
+    verify_group_access,
+)
 from texts import BTN_START_MOVE, BTN_ZONES_MENU
 from ui import group_live_card, welcome_card, worker_hint_card, zones_list_card
 from time_util import fmt_hm, now_dt
 
 router = Router(name="commands")
+log = logging.getLogger(__name__)
 
 
 async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
@@ -35,8 +46,8 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
         text = worker_hint_card(name=name, session_active=storage.has_active_session())
         if settings()["admin_ids"]:
             text += (
-                f"\n\n<i>Mas'ul bo'lsangiz, Railway da "
-                f"<code>ADMIN_IDS={uid}</code> qo'shing.</i>"
+                f"\n\n<i>Mas'ul: Railway → "
+                f"<code>ADMIN_IDS={uid}</code></i>"
             )
     await message.answer(text, parse_mode="HTML", reply_markup=kb)
 
@@ -50,10 +61,46 @@ async def cmd_zones(message: Message) -> None:
 
 
 async def cmd_id(message: Message) -> None:
+    uid = message.from_user.id if message.from_user else "—"
+    extra = ""
+    if is_group_chat(message):
+        extra = (
+            "\n\n✅  Shu raqamni Railway → <code>GROUP_ID</code> ga yozing.\n"
+            "<i>Bot guruhda bo'lishi shart.</i>"
+        )
     await message.answer(
-        f"📌  <b>Chat ID</b>\n<code>{message.chat.id}</code>",
+        f"📌  <b>Chat ID</b>\n<code>{message.chat.id}</code>\n\n"
+        f"👤  <b>Sizning ID</b>\n<code>{uid}</code>{extra}",
         parse_mode="HTML",
     )
+
+
+async def cmd_guruh(message: Message, bot: Bot) -> None:
+    """GROUP_ID tekshiruvi (shaxsiy chat)."""
+    uid = message.from_user.id if message.from_user else 0
+    if settings()["admin_ids"] and not is_admin(uid):
+        return await message.answer("⚠️  Faqat mas'ul/admin.", parse_mode="HTML")
+    if is_group_chat(message):
+        return await message.answer(
+            "Bu buyruqni <b>shaxsiy chatda</b> yuboring.\n"
+            "Guruhda esa to'g'ridan-to'g'ri <b>🚀 Boshlash</b> bosing.",
+            parse_mode="HTML",
+        )
+    try:
+        title = await verify_group_access(bot)
+        cfg = settings()["group_id"]
+        resolved = get_group_id()
+        fix = ""
+        if resolved and cfg and resolved != cfg:
+            fix = f"\n\n💡  Railway yangilang:\n<code>GROUP_ID={resolved}</code>"
+        await message.answer(
+            f"✅  <b>Guruh topildi</b>\n\n"
+            f"📛  <b>{title}</b>\n\n"
+            f"{parse_group_id_hint()}{fix}",
+            parse_mode="HTML",
+        )
+    except GroupConfigError as e:
+        await message.answer(group_fix_message(detail=str(e)), parse_mode="HTML")
 
 
 async def cmd_startmove(message: Message, bot: Bot) -> None:
@@ -64,7 +111,7 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
         return await message.answer(
             "⛔  Faqat <b>mas'ul/admin</b> jarayonni boshlaydi.\n"
             f"Sizning ID: <code>{uid}</code>\n"
-            "Railway → <b>ADMIN_IDS</b> ga qo'shing.",
+            "Railway → <b>ADMIN_IDS</b>",
             parse_mode="HTML",
         )
 
@@ -74,12 +121,9 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
             parse_mode="HTML",
         )
 
-    group_id = cfg["group_id"]
-    if not group_id:
-        return await message.answer(
-            "⚠️  <b>GROUP_ID</b> sozlanmagan.",
-            parse_mode="HTML",
-        )
+    group_id, err = await resolve_target_group_id(bot, message)
+    if err or not group_id:
+        return await message.answer(err or group_fix_message(), parse_mode="HTML")
 
     masul_name = message.from_user.full_name if message.from_user else "Noma'lum"
     start_time = now_dt()
@@ -97,24 +141,34 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
     }
     storage.add_masul_as_participant(uid, masul_name)
 
-    sent = await bot.send_message(
-        group_id,
-        group_live_card(now=start_time),
-        reply_markup=group_live_keyboard(),
-        parse_mode="HTML",
-    )
+    try:
+        sent = await bot.send_message(
+            group_id,
+            group_live_card(now=start_time),
+            reply_markup=group_live_keyboard(),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        storage.reset_session()
+        log.exception("Guruhga yuborish xatosi: %s", e)
+        return await message.answer(
+            group_fix_message(detail=str(e)[:200]),
+            parse_mode="HTML",
+        )
+
     storage.active_session["group_message_id"] = sent.message_id
 
     if app_context.ticker:
         await app_context.ticker.start()
 
+    where = "shu guruhda" if is_group_chat(message) else "ishchi guruhda"
     await message.answer(
         f"✅  <b>Jarayon #{sid} boshlandi</b>\n"
         f"🕒  {fmt_hm(start_time)}\n\n"
-        "Guruhda <b>LIVE</b> panel yuborildi.\n"
-        "Yakunlash: <b>🏁 Yakunlash</b> tugmasi.",
+        f"📣  LIVE panel <b>{where}</b> yuborildi.\n"
+        f"🆔  Guruh ID: <code>{group_id}</code>",
         parse_mode="HTML",
-        reply_markup=private_main_keyboard(),
+        reply_markup=private_main_keyboard() if not is_group_chat(message) else None,
     )
 
 
@@ -124,6 +178,7 @@ async def cmd_zones_menu(message: Message) -> None:
 
 router.message.register(cmd_start, Command("start"))
 router.message.register(cmd_zones, Command("zones"))
+router.message.register(cmd_guruh, Command("guruh"))
 router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_startmove, Command("startmove"))

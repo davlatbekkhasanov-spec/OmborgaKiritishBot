@@ -74,6 +74,7 @@ def welcome_card(*, is_masul: bool, name: str) -> str:
         "┃  🏁  <b>Yakunlash</b> — hisobot + surat\n"
         "┃  📍  <b>Zonalar</b> — QR havolalar\n"
         "┃  📌  /id — Telegram ID\n"
+        "┃  🔗  /guruh — guruh tekshiruv\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
         f"<i>🕐 {he(display_now())}</i>"
     )

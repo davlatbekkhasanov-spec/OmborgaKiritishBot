@@ -18,6 +18,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 import app_context
 from config import settings, startup_warnings
 from handlers import setup_routers
+from services.group_check import GroupConfigError, verify_group_access
 from services.live_ticker import LiveTicker
 
 logging.basicConfig(
@@ -40,6 +41,14 @@ async def main() -> None:
         token=cfg["token"],
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+
+    if cfg["group_id"]:
+        try:
+            title = await verify_group_access(bot)
+            log.info("Guruh OK: %s", title)
+        except GroupConfigError as e:
+            log.error("Guruh ulanishi: %s — /guruh yoki GROUP_ID ni tuzating", e)
+
     me = await bot.get_me()
     app_context.bot_username = (me.username or "").strip()
     app_context.ticker = LiveTicker(bot)

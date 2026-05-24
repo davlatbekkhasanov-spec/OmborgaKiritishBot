@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import app_context
-from config import settings
+from config import get_group_id, settings
 import storage
 from keyboards import CB_FINISH
 from states import FinishStates
@@ -96,7 +96,7 @@ async def finish_bosh_joy(message: Message, state: FSMContext, bot: Bot) -> None
     await state.clear()
 
     report = final_report_card()
-    group_id = settings()["group_id"]
+    group_id = get_group_id() or settings()["group_id"]
 
     if group_id:
         await bot.send_message(group_id, report, parse_mode="HTML")
