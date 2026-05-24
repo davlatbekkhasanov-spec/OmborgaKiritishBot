@@ -9,7 +9,16 @@ from typing import Any
 import storage
 from stats import SessionMetrics, ranked_workers, session_metrics, worker_stats
 from texts import BRAND, BTN_JOIN, BTN_TRIP
-from time_util import display_now, fmt_distance_m, fmt_duration, fmt_duration_short, fmt_elapsed, fmt_hm, now_dt
+from time_util import (
+    display_now,
+    ensure_aware,
+    fmt_distance_m,
+    fmt_duration,
+    fmt_duration_short,
+    fmt_elapsed,
+    fmt_hm,
+    now_dt,
+)
 
 _live_i = 0
 
@@ -109,7 +118,7 @@ def worker_hint_card(*, name: str, session_active: bool) -> str:
 
 
 def group_live_card(*, now: datetime | None = None, phase: str = "active") -> str:
-    now = now or now_dt()
+    now = ensure_aware(now or now_dt())
     sess = storage.active_session
     if not sess:
         return f"{banner('HOLAT', icon='📊')}\n\n<i>Faol jarayon yo'q</i>"

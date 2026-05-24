@@ -19,6 +19,13 @@ def now_dt() -> datetime:
     return datetime.now(_tz())
 
 
+def ensure_aware(dt: datetime) -> datetime:
+    """Naive datetime → Asia/Tashkent (eski yozuvlar bilan mos)."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=_tz())
+    return dt
+
+
 def display_now() -> str:
     return now_dt().strftime("%d.%m.%Y  %H:%M")
 
@@ -28,7 +35,8 @@ def fmt_hm(dt: datetime) -> str:
 
 
 def fmt_elapsed(join_time: datetime, now: datetime | None = None) -> str:
-    now = now or now_dt()
+    now = ensure_aware(now or now_dt())
+    join_time = ensure_aware(join_time)
     sec = max(0, int((now - join_time).total_seconds()))
     h, rem = divmod(sec, 3600)
     m, s = divmod(rem, 60)

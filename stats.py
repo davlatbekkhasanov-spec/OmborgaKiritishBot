@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 import storage
-from time_util import fmt_distance_m, fmt_duration, fmt_duration_short, now_dt
+from time_util import ensure_aware, fmt_distance_m, fmt_duration, fmt_duration_short, now_dt
 
 
 @dataclass
@@ -26,10 +26,10 @@ def session_metrics(end: datetime | None = None) -> SessionMetrics:
     sess = storage.active_session
     proc = 0
     if sess:
-        proc = max(0, int((end - sess["start_time"]).total_seconds()))
+        proc = max(0, int((end - ensure_aware(sess["start_time"])).total_seconds()))
     ph = 0
     for p in storage.participants.values():
-        ph += max(0, int((end - p["join_time"]).total_seconds()))
+        ph += max(0, int((end - ensure_aware(p["join_time"])).total_seconds()))
     trips = storage.trips
     total_dist = sum(t["distance_meter"] for t in trips)
     avg = sum(t["duration_sec"] for t in trips) // len(trips) if trips else 0

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
+
+from time_util import ensure_aware, now_dt
 
 ZONES: dict[str, dict[str, Any]] = {
     "OMBOR_A": {"zone_name": "Ombor A", "distance_meter": 12},
@@ -76,7 +77,7 @@ def add_masul_as_participant(user_id: int, full_name: str) -> None:
     participants[user_id] = {
         "user_id": user_id,
         "full_name": full_name,
-        "join_time": datetime.now(),
+        "join_time": now_dt(),
     }
 
 
@@ -88,7 +89,7 @@ def try_join(user_id: int, full_name: str) -> tuple[bool, str]:
     participants[user_id] = {
         "user_id": user_id,
         "full_name": full_name,
-        "join_time": datetime.now(),
+        "join_time": now_dt(),
     }
     return True, "Siz qatnashdingiz ✅"
 
@@ -104,7 +105,7 @@ def try_start_trip(user_id: int) -> tuple[bool, str]:
     active_trips[user_id] = {
         "id": tid,
         "user_id": user_id,
-        "trip_start_time": datetime.now(),
+        "trip_start_time": now_dt(),
     }
     return True, "Reys boshlandi. Zonada QR skaner qiling 📱"
 
@@ -118,8 +119,8 @@ def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str]:
     open_trip = active_trips.get(user_id)
     if not open_trip:
         return False, "Ochiq reys yo'q. Avval «Reys oldim» bosing."
-    end = datetime.now()
-    start = open_trip["trip_start_time"]
+    end = now_dt()
+    start = ensure_aware(open_trip["trip_start_time"])
     duration_sec = max(0, int((end - start).total_seconds()))
     record = {
         "id": open_trip["id"],
