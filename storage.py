@@ -6,11 +6,7 @@ from typing import Any
 
 from time_util import ensure_aware, now_dt
 
-ZONES: dict[str, dict[str, Any]] = {
-    "OMBOR_A": {"zone_name": "Ombor A", "distance_meter": 12},
-    "OMBOR_B": {"zone_name": "Ombor B", "distance_meter": 24},
-    "SOVUQ_XONA": {"zone_name": "Sovuq xona", "distance_meter": 41},
-}
+from zones_config import ZONES
 
 active_session: dict[str, Any] | None = None
 participants: dict[int, dict[str, Any]] = {}

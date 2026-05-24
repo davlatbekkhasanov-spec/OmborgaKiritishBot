@@ -23,14 +23,21 @@ def group_live_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def _zone_button_label(z: dict) -> str:
+    name = str(z.get("zone_name", ""))
+    if len(name) > 24:
+        name = name[:23] + "…"
+    return f"📍 {name} · {z['distance_meter']}m"
+
+
 def zone_inline_keyboard() -> InlineKeyboardMarkup:
-    """Bir bosish — zona tanlash (Mini App siz)."""
+    """Bir bosish — zona tanlash."""
     rows: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
     for code, z in storage.ZONES.items():
         row.append(
             InlineKeyboardButton(
-                text=f"📍 {z['zone_name']} · {z['distance_meter']}m",
+                text=_zone_button_label(z),
                 callback_data=f"{CB_ZONE_PREFIX}{code}",
             )
         )
