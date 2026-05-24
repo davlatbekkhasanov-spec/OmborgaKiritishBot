@@ -1,4 +1,4 @@
-"""Vaqt formatlash."""
+"""Vaqt va masofa formatlash."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ def fmt_hm(dt: datetime) -> str:
 
 
 def fmt_elapsed(join_time: datetime, now: datetime | None = None) -> str:
-    """00:03:21"""
     now = now or datetime.now()
     sec = max(0, int((now - join_time).total_seconds()))
     h, rem = divmod(sec, 3600)
@@ -18,3 +17,27 @@ def fmt_elapsed(join_time: datetime, now: datetime | None = None) -> str:
     if h:
         return f"{h:02d}:{m:02d}:{s:02d}"
     return f"{m:02d}:{s:02d}"
+
+
+def fmt_duration_long(sec: int) -> str:
+    sec = max(0, int(sec))
+    h, rem = divmod(sec, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h} soat {m:02d} daq"
+    if m:
+        return f"{m} daq {s:02d} son"
+    return f"{s} son"
+
+
+def fmt_duration_short(sec: int) -> str:
+    sec = max(0, int(sec))
+    m, s = divmod(sec, 60)
+    return f"{m}:{s:02d}"
+
+
+def fmt_distance_m(meters: int) -> str:
+    m = max(0, int(meters))
+    if m >= 1000:
+        return f"{m / 1000:.1f} km"
+    return f"{m}m"
