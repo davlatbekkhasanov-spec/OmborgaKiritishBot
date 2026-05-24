@@ -1,4 +1,4 @@
-"""Guruh inline tugmalar."""
+"""Guruh va zona callbacklari."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ from aiogram.types import CallbackQuery
 
 import app_context
 import storage
-from keyboards import CB_JOIN, CB_TRIP
-from ui import trip_started_card
+from handlers.zone_pick import pick_zone_from_callback, send_zone_picker
+from keyboards import CB_JOIN, CB_TRIP, CB_ZONE_PREFIX, zone_inline_keyboard
+from ui import banner
 
 router = Router(name="callbacks")
 
@@ -36,17 +37,33 @@ async def on_trip(callback: CallbackQuery, bot: Bot) -> None:
     if app_context.ticker:
         await app_context.ticker.refresh()
     try:
-        from texts import BTN_QR_SCAN
-
         await bot.send_message(
             user.id,
-            trip_started_card(bot_username=app_context.bot_username)
-            + f"\n\n📷  Yoki shaxsiy chatda <b>{BTN_QR_SCAN}</b> tugmasini bosing.",
+            f"{banner('REYS BOSHLANDI', icon='🚛')}\n\n"
+            "👇  Zonani tanlang:",
             parse_mode="HTML",
-            disable_web_page_preview=True,
+            reply_markup=zone_inline_keyboard(),
         )
     except Exception:
         await callback.answer(
-            "Bot bilan shaxsiy chatda /start bosing.",
+            "Shaxsiy chatda /start bosing, keyin «Zonani tanlash».",
             show_alert=True,
         )
+
+
+@router.callback_query(F.data.startswith(CB_ZONE_PREFIX))
+async def on_zone_button(callback: CallbackQuery, bot: Bot) -> None:
+    user = callback.from_user
+    if not user or not callback.data:
+        return
+    zone_code = callback.data[len(CB_ZONE_PREFIX) :]
+    chat_id = callback.message.chat.id if callback.message else user.id
+
+    await pick_zone_from_callback(
+        bot,
+        user.id,
+        user.full_name or "Noma'lum",
+        chat_id,
+        zone_code,
+    )
+    await callback.answer("✅")

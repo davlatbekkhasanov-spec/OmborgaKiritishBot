@@ -20,8 +20,10 @@ from services.group_check import (
     resolve_target_group_id,
     verify_group_access,
 )
-from texts import BTN_START_MOVE, BTN_ZONES_MENU
+from handlers.zone_pick import send_zone_picker
+from texts import BTN_PICK_ZONE, BTN_START_MOVE, BTN_ZONES_MENU
 from ui import group_live_card, welcome_card, worker_hint_card, zones_list_card
+from keyboards import zone_inline_keyboard
 from time_util import fmt_hm, now_dt
 
 router = Router(name="commands")
@@ -52,11 +54,16 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
     await message.answer(text, parse_mode="HTML", reply_markup=kb)
 
 
-async def cmd_zones(message: Message) -> None:
+async def cmd_zones(message: Message, bot: Bot) -> None:
+    uid = message.from_user.id if message.from_user else 0
+    if uid in storage.active_trips:
+        await send_zone_picker(bot, message.chat.id, uid)
+        return
     await message.answer(
         zones_list_card(bot_username=app_context.bot_username),
         parse_mode="HTML",
         disable_web_page_preview=True,
+        reply_markup=zone_inline_keyboard(),
     )
 
 
@@ -172,14 +179,20 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
     )
 
 
-async def cmd_zones_menu(message: Message) -> None:
-    await cmd_zones(message)
+async def cmd_zones_menu(message: Message, bot: Bot) -> None:
+    await cmd_zones(message, bot)
+
+
+async def cmd_pick_zone(message: Message, bot: Bot) -> None:
+    uid = message.from_user.id if message.from_user else 0
+    await send_zone_picker(bot, message.chat.id, uid)
 
 
 router.message.register(cmd_start, Command("start"))
 router.message.register(cmd_zones, Command("zones"))
 router.message.register(cmd_guruh, Command("guruh"))
 router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
+router.message.register(cmd_pick_zone, F.text == BTN_PICK_ZONE)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_startmove, Command("startmove"))
 router.message.register(cmd_startmove, F.text == BTN_START_MOVE)
