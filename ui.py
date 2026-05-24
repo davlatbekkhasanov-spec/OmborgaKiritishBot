@@ -8,7 +8,7 @@ from typing import Any
 
 import storage
 from stats import SessionMetrics, ranked_workers, session_metrics, worker_stats
-from texts import BRAND, BTN_JOIN
+from texts import BRAND, BTN_JOIN, BTN_TRIP
 from time_util import display_now, fmt_distance_m, fmt_duration, fmt_duration_short, fmt_elapsed, fmt_hm, now_dt
 
 _live_i = 0
@@ -78,13 +78,27 @@ def welcome_card(*, is_masul: bool, name: str) -> str:
     )
 
 
-def worker_hint_card() -> str:
+def worker_hint_card(*, name: str, session_active: bool) -> str:
+    greet = f"👋  <b>{he(name)}</b>\n<i>Ishchi rejimi</i>\n\n"
+    live_note = ""
+    if session_active:
+        live_note = (
+            f"\n{sep('·')}\n"
+            "🟢  <b>LIVE jarayon ochiq</b>\n"
+            "👉  Ish guruhiga o'ting va tugmalardan foydalaning\n"
+            f"{sep('·')}\n\n"
+        )
     return (
-        f"{banner('OMBOR JARAYONI', icon='👷')}\n\n"
-        f"1️⃣  Guruhda <b>{he(BTN_JOIN)}</b>\n"
-        "2️⃣  <b>Reys oldim</b> → QR skaner\n"
-        "3️⃣  Zonaga yetib boring\n\n"
-        "<i>⏱ Live tаймер  ·  📦 Reys  ·  🏆 Reyting</i>"
+        f"{banner(BRAND, icon='👷')}\n\n"
+        f"{greet}"
+        f"{live_note}"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┃  1️⃣  Guruhda  <b>{he(BTN_JOIN)}</b>\n"
+        f"┃  2️⃣  <b>{he(BTN_TRIP)}</b>\n"
+        "┃  3️⃣  Zonada QR skaner\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        "<i>⏱ Live taymer  ·  📦 Reys  ·  🏆 Reyting</i>\n\n"
+        f"<i>🕐 {he(display_now())}</i>"
     )
 
 

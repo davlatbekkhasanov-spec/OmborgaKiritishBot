@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from aiogram import Bot, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 import app_context
 from config import is_admin, settings
 import storage
-from keyboards import group_live_keyboard
+from keyboards import group_live_keyboard, masul_private_keyboard, worker_private_keyboard
+from texts import BTN_START_MOVE, BTN_ZONES_MENU
 from ui import group_live_card, welcome_card, worker_hint_card, zones_list_card
 from time_util import fmt_hm, now_dt
 
@@ -28,10 +29,18 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
     name = user.full_name if user else "Mehmon"
     uid = user.id if user else 0
     if is_admin(uid):
-        text = welcome_card(is_masul=True, name=name)
-    else:
-        text = worker_hint_card()
-    await message.answer(text, parse_mode="HTML")
+        await message.answer(
+            welcome_card(is_masul=True, name=name),
+            parse_mode="HTML",
+            reply_markup=masul_private_keyboard(),
+        )
+        return
+
+    await message.answer(
+        worker_hint_card(name=name, session_active=storage.has_active_session()),
+        parse_mode="HTML",
+        reply_markup=worker_private_keyboard(),
+    )
 
 
 async def cmd_zones(message: Message) -> None:
@@ -107,7 +116,13 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
     )
 
 
+async def cmd_zones_menu(message: Message) -> None:
+    await cmd_zones(message)
+
+
 router.message.register(cmd_start, Command("start"))
 router.message.register(cmd_zones, Command("zones"))
+router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_startmove, Command("startmove"))
+router.message.register(cmd_startmove, F.text == BTN_START_MOVE)
