@@ -1,0 +1,51 @@
+Bot: @OmborgaKiritishBot
+STAIR_FACTOR=4
+----------------------------------------
+Склад 1
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_1
+
+Склад 2
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_2
+
+Склад 3
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_3
+
+Склад 4
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_4
+
+Склад 5
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_5
+
+Склад 6
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_6
+
+Склад фото бумага
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_FOTO_BUMAGA
+
+Склад 7
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_7
+
+Склад рамка Н
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_RAMKA_N
+
+Склад 7 Зал
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_7_ZAL
+
+Будка
+https://t.me/OmborgaKiritishBot?start=zone_BUDKA
+
+Склад балкон Зал 1
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_BALKON_ZAL_1
+
+Склад балкон Зал 2
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_BALKON_ZAL_2
+
+Склад 8
+https://t.me/OmborgaKiritishBot?start=zone_SKLAD_8
+
+Тунел 1
+https://t.me/OmborgaKiritishBot?start=zone_TUNEL_1
+
+Тунел 2
+https://t.me/OmborgaKiritishBot?start=zone_TUNEL_2
+

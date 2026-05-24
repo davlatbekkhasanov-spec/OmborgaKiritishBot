@@ -1,4 +1,5 @@
 .env
+qr_print/*.png
 __pycache__/
 *.pyc
 .venv/

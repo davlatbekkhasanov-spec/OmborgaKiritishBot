@@ -22,7 +22,8 @@ from services.group_check import (
 )
 from handlers.zone_pick import send_zone_picker
 from texts import BTN_PICK_ZONE, BTN_START_MOVE, BTN_ZONES_MENU
-from ui import group_live_card, welcome_card, worker_hint_card, zones_list_card
+from zones_config import ZONES, zone_deep_link
+from ui import group_live_card, he, welcome_card, worker_hint_card, zones_list_card
 from keyboards import zone_inline_keyboard
 from time_util import fmt_hm, now_dt
 
@@ -188,6 +189,38 @@ async def cmd_pick_zone(message: Message, bot: Bot) -> None:
     await send_zone_picker(bot, message.chat.id, uid)
 
 
+async def cmd_qrprint(message: Message) -> None:
+    """Mas'ul: chop etish uchun havolalar + yo'riqnoma."""
+    uid = message.from_user.id if message.from_user else 0
+    if settings()["admin_ids"] and not is_admin(uid):
+        return await message.answer("⚠️  Faqat mas'ul/admin.", parse_mode="HTML")
+
+    bot_user = app_context.bot_username
+    if not bot_user:
+        return await message.answer(
+            "Bot username topilmadi. Redeploy qiling.",
+            parse_mode="HTML",
+        )
+
+    lines = [
+        "🖨  <b>QR chop etish</b>\n",
+        "Kompyuterda bir marta:\n",
+        "<code>pip install qrcode[pil] pillow</code>\n",
+        f"<code>python scripts/generate_zone_qr.py --bot {bot_user}</code>\n",
+        "Papka: <b>qr_print/</b> — PNG + chop_etish.html\n\n",
+        "━━━━ Havolalar (tezkor) ━━━━\n",
+    ]
+    for code, z in ZONES.items():
+        url = zone_deep_link(bot_user, code)
+        lines.append(
+            f"\n<b>{he(z['zone_name'])}</b>\n"
+            f"gor {z['horizontal_meter']}m · ekv {z['effort_meter']}m\n"
+            f"<code>{url}</code>"
+        )
+
+    await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
 router.message.register(cmd_start, Command("start"))
 router.message.register(cmd_zones, Command("zones"))
 router.message.register(cmd_guruh, Command("guruh"))
@@ -196,3 +229,4 @@ router.message.register(cmd_pick_zone, F.text == BTN_PICK_ZONE)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_startmove, Command("startmove"))
 router.message.register(cmd_startmove, F.text == BTN_START_MOVE)
+router.message.register(cmd_qrprint, Command("qrprint"))

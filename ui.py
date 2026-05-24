@@ -192,20 +192,11 @@ def group_live_card(*, now: datetime | None = None, phase: str = "active") -> st
 
 
 def trip_started_card(*, bot_username: str) -> str:
-    zones = []
-    for code, z in storage.ZONES.items():
-        link = f"https://t.me/{bot_username}?start=zone_{code}" if bot_username else f"zone_{code}"
-        zones.append(
-            f"<code>│</code>  📍  <b>{he(z['zone_name'])}</b>  "
-            f"<i>{z['distance_meter']}m</i>\n"
-            f"<code>│</code>      <code>{he(link)}</code>"
-        )
     return (
         f"{banner('REYS BOSHLANDI', icon='🚛')}\n\n"
-        "Zonaga boring va QR skaner qiling:\n"
-        "<code>╭──────────────────────────╮</code>\n"
-        + "\n".join(zones)
-        + "\n<code>╰──────────────────────────╯</code>"
+        "📷  Zonadagi <b>QR stiker</b> ni skaner qiling.\n"
+        "Yoki <b>📍 Zonani tanlash</b> (zaxira).\n\n"
+        "<i>Ekvivalent masofa hisobda ishlatiladi.</i>"
     )
 
 
@@ -215,11 +206,19 @@ def trip_complete_card(
     distance_meter: int,
     duration_sec: int,
     worker_name: str,
+    horizontal_meter: int | None = None,
+    effort_meter: int | None = None,
 ) -> str:
+    ekv = effort_meter if effort_meter is not None else distance_meter
+    gor = horizontal_meter
+    dist_line = f"📏  Ekvivalent: <b>{ekv} m</b>"
+    if gor is not None and gor != ekv:
+        dist_line = f"📏  Gor: {gor} m  ·  Ekv: <b>{ekv} m</b>"
     return (
         f"{banner('REYS YAKUN', icon='✅')}\n\n"
         f"👤  <b>{he(worker_name)}</b>\n"
-        f"📍  <b>{he(zone_name)}</b>  ·  <i>{distance_meter} m</i>\n"
+        f"📍  <b>{he(zone_name)}</b>\n"
+        f"{dist_line}\n"
         f"⏱  <b>{fmt_duration_short(duration_sec)}</b>\n\n"
         f"<code>{glow_bar(min(100, duration_sec), 12)}</code>"
     )
@@ -233,9 +232,11 @@ def zones_list_card(*, bot_username: str) -> str:
             if bot_username
             else f"/start zone_{code}"
         )
+        gor = z.get("horizontal_meter", z["distance_meter"])
+        ekv = z.get("effort_meter", z["distance_meter"])
         lines.append(
             f"▸  <b>{he(z['zone_name'])}</b>  <code>{he(code)}</code>\n"
-            f"    📏 {z['distance_meter']}m\n"
+            f"    📏 gor {gor}m · ekv <b>{ekv}m</b>\n"
             f"    <code>{he(link)}</code>\n"
         )
     lines.append(f"\n<i>🕐 {he(display_now())}</i>")

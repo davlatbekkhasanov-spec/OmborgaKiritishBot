@@ -27,7 +27,8 @@ def _zone_button_label(z: dict) -> str:
     name = str(z.get("zone_name", ""))
     if len(name) > 24:
         name = name[:23] + "…"
-    return f"📍 {name} · {z['distance_meter']}m"
+    ekv = z.get("effort_meter", z.get("distance_meter", 0))
+    return f"📍 {name} · {ekv}m"
 
 
 def zone_inline_keyboard() -> InlineKeyboardMarkup:

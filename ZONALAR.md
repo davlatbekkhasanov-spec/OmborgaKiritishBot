@@ -1,26 +1,58 @@
-# Zonalar (yuk olish nuqtasidan)
+# Zonalar + QR chop etish
 
-| # | Zona | Masofa | Izoh |
-|---|------|--------|------|
-| 1 | Склад 1 | 46 m | 7 см |
-| 2 | Склад 2 | 41 m | 7 см |
-| 3 | Склад 3 | 38 m | 8 см |
-| 4 | Склад 4 | 32 m | 5 см |
-| 5 | Склад 5 | 24 m | 8 см |
-| 6 | Склад 6 | 19 m | 7 см |
-| 7 | Склад фото бумага | 25 m | 10 см |
-| 8 | Склад 7 | 27 m | — |
-| 9 | Склад рамка Н | 37 m | — |
-| 10 | Склад 7 Зал | 35 m | 6 см |
-| 11 | Будка | 15 m | 3 см |
-| 12 | Склад балкон Зал 1 | 35 m | balandlik 5m 7sm, zina |
-| 13 | Склад балкон Зал 2 | 46 m | balandlik 5m 7sm, zina |
-| 14 | Склад 8 | 52 m | 6 см |
-| 15 | Тунел 1 | 53 m | — |
-| 16 | Тунел 2 | 79 m | — |
+## Ekvivalent masofa
 
-Bot kodlari: `zones_config.py` → `ZONES`.
+```
+ekvivalent = gorizontal (m) + balandlik (m) × 4
+```
 
-**Muhokama uchun savollar:**
-- «см» qanday hisobga olinadi (masofa qo‘shimchasi yoki balandlik)?
-- QR stikerlar kerakmi yoki faqat tugmalar?
+`STAIR_FACTOR = 4` — `zones_config.py` da o'zgartirish mumkin.
+
+| Zona | Gor (m) | Baland | Ekv (m) |
+|------|---------|--------|---------|
+| Склад 1 | 46 | 0.07 | 46 |
+| Склад 2 | 41 | 0.07 | 41 |
+| Склад 3 | 38 | 0.08 | 38 |
+| Склад 4 | 32 | 0.05 | 32 |
+| Склад 5 | 24 | 0.08 | 24 |
+| Склад 6 | 19 | 0.07 | 19 |
+| Склад фото бумага | 25 | 0.10 | 25 |
+| Склад 7 | 27 | — | 27 |
+| Склад рамка Н | 37 | — | 37 |
+| Склад 7 Зал | 35 | 0.06 | 35 |
+| Будка | 15 | 0.03 | 15 |
+| Склад балкон Зал 1 | 35 | 5.7 | **58** |
+| Склад балкон Зал 2 | 46 | 5.7 | **69** |
+| Склад 8 | 52 | 0.06 | 52 |
+| Тунел 1 | 53 | — | 53 |
+| Тунел 2 | 79 | — | 79 |
+
+## QR stikerlarni chop etish
+
+### 1-usul — PNG fayllar (tavsiya)
+
+Kompyuterda (bot papkasida):
+
+```bash
+pip install -r requirements-qr.txt
+python scripts/generate_zone_qr.py --bot SIZNING_BOT_USERNAME
+```
+
+`qr_print/` papkasida:
+- `SKLAD_1.png` … `TUNEL_2.png` — har zona alohida
+- `chop_etish.html` — brauzerdan Ctrl+P, A4
+- `havolalar.txt` — barcha havolalar
+
+Stikerlarni zonaga yopishtiring.
+
+### 2-usul — Telegram
+
+Mas'ul shaxsiy chatda: **`/qrprint`** — barcha havolalar matn bo‘lib keladi (onlayn QR generatorga qo‘yish mumkin).
+
+### QR format
+
+```
+https://t.me/BOT_USERNAME?start=zone_SKLAD_1
+```
+
+Telefon kamerasi yoki Telegram skaner — bot ochiladi, reys yopiladi.

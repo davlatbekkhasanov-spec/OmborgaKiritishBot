@@ -1,0 +1,3 @@
+# QR PNG generatsiya (faqat chop etish kompyuterida)
+qrcode[pil]>=7.4
+Pillow>=10.0

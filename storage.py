@@ -126,7 +126,9 @@ def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str]:
         "zone_code": zone_code.upper(),
         "zone_name": zone["zone_name"],
         "duration_sec": duration_sec,
-        "distance_meter": zone["distance_meter"],
+        "horizontal_meter": zone["horizontal_meter"],
+        "effort_meter": zone["effort_meter"],
+        "distance_meter": zone["effort_meter"],
     }
     trips.append(record)
     del active_trips[user_id]

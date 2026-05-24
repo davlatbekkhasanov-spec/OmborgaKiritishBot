@@ -29,6 +29,8 @@ async def complete_trip_for_user(
         trip_complete_card(
             zone_name=record["zone_name"],
             distance_meter=record["distance_meter"],
+            horizontal_meter=record.get("horizontal_meter"),
+            effort_meter=record.get("effort_meter"),
             duration_sec=record["duration_sec"],
             worker_name=full_name or "Noma'lum",
         ),
