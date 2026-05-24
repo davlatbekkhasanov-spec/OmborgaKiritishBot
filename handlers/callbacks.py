@@ -36,9 +36,12 @@ async def on_trip(callback: CallbackQuery, bot: Bot) -> None:
     if app_context.ticker:
         await app_context.ticker.refresh()
     try:
+        from texts import BTN_QR_SCAN
+
         await bot.send_message(
             user.id,
-            trip_started_card(bot_username=app_context.bot_username),
+            trip_started_card(bot_username=app_context.bot_username)
+            + f"\n\n📷  Yoki shaxsiy chatda <b>{BTN_QR_SCAN}</b> tugmasini bosing.",
             parse_mode="HTML",
             disable_web_page_preview=True,
         )

@@ -62,12 +62,19 @@ def settings() -> dict:
     admin_ids = _parse_ids(os.getenv("ADMIN_IDS") or os.getenv("ADMIN_ID") or "")
     tz = (os.getenv("TZ") or "Asia/Tashkent").strip() or "Asia/Tashkent"
     tick = max(3, int(os.getenv("TICK_SEC") or "5"))
+    webapp_url = (os.getenv("WEBAPP_URL") or "").strip()
+    if not webapp_url:
+        webapp_url = (
+            "https://cdn.jsdelivr.net/gh/davlatbekkhasanov-spec/"
+            "OmborgaKiritishBot@main/webapp/index.html"
+        )
     return {
         "token": token,
         "group_id": group_id,
         "admin_ids": admin_ids,
         "tz": tz,
         "tick_sec": tick,
+        "webapp_url": webapp_url,
     }
 
 

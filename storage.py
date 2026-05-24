@@ -139,9 +139,11 @@ def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str]:
 
 def parse_zone_payload(text: str | None) -> str | None:
     """/start zone_OMBOR_A"""
+    from qr_parse import parse_zone_from_text
+
     if not text:
         return None
     raw = text.strip()
     if raw.lower().startswith("zone_"):
         return raw[5:].strip().upper()
-    return None
+    return parse_zone_from_text(raw)

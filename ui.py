@@ -110,7 +110,7 @@ def worker_hint_card(*, name: str, session_active: bool) -> str:
         "┣━━━━━━━━━━━━━━━━━━━━━━━━┫\n"
         f"┃  1️⃣  Guruhda  <b>{he(BTN_JOIN)}</b>\n"
         f"┃  2️⃣  <b>{he(BTN_TRIP)}</b>\n"
-        "┃  3️⃣  Zonada QR skaner\n"
+        "┃  3️⃣  <b>📷 QR skaner</b> — kamera\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
         "<i>⏱ Live taymer  ·  📦 Reys  ·  🏆 Reyting</i>\n\n"
         f"<i>🕐 {he(display_now())}</i>"
