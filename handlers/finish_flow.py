@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
@@ -28,16 +29,16 @@ async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
     if not ok:
         return f"⚠️  {err}"
 
-    await state.set_state(FinishStates.waiting_ombor_photo)
+    await state.set_state(FinishStates.waiting_bosh_joy_photo)
     await state.update_data(finish_user_id=user_id)
     try:
         await bot.send_message(
             user_id,
             photo_prompt(
                 1,
-                2,
-                "Omborga olib kirilgan yuklar",
-                "Siz olib kirgan yuklar omborda",
+                1,
+                "Tashqaridagi bo'sh joy",
+                "Yuk olib kirilgach tashqarida bo'sh qolgan joy",
             ),
             parse_mode="HTML",
         )
@@ -85,19 +86,17 @@ async def _send_group_finish_report(bot: Bot, sess: dict[str, Any], report: str)
         except Exception as e:
             log.warning("Boshlash rasmi guruhga: %s", e)
 
-    for key in ("ombor", "bosh_joy"):
-        fid = (sess.get("finish_photos") or {}).get(key)
-        if not fid:
-            continue
+    fid = (sess.get("finish_photos") or {}).get("bosh_joy")
+    if fid:
         try:
             await bot.send_photo(
                 group_id,
                 fid,
-                caption=photo_album_caption(key, worker_name=name),
+                caption=photo_album_caption("bosh_joy", worker_name=name),
                 parse_mode="HTML",
             )
         except Exception as e:
-            log.warning("Surat %s guruhga: %s", key, e)
+            log.warning("Surat bosh_joy guruhga: %s", e)
 
     return ok
 
@@ -108,22 +107,6 @@ async def finish_from_private(message: Message, state: FSMContext, bot: Bot) -> 
     err = await begin_finish(uid, bot, state)
     if err:
         await message.answer(err, parse_mode="HTML")
-
-
-@router.message(StateFilter(FinishStates.waiting_ombor_photo), F.photo)
-async def finish_ombor(message: Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    uid = data.get("finish_user_id") or (message.from_user.id if message.from_user else 0)
-    s = storage.get_session(uid)
-    if not s:
-        await state.clear()
-        return await message.answer("⚠️  Sessiya topilmadi.", parse_mode="HTML")
-    s.setdefault("finish_photos", {})["ombor"] = message.photo[-1].file_id
-    await state.set_state(FinishStates.waiting_bosh_joy_photo)
-    await message.answer(
-        photo_prompt(2, 2, "Tashqaridagi bo'sh joy", "Yuk olib kirilgach tashqarida bo'sh qolgan joy"),
-        parse_mode="HTML",
-    )
 
 
 @router.message(StateFilter(FinishStates.waiting_bosh_joy_photo), F.photo)

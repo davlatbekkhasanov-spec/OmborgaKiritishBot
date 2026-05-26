@@ -286,7 +286,6 @@ def final_report_card(
             sep(),
             "📸  <b>SURATLAR</b>",
             f"    Boshlash (yuk)  {'✅' if sess.get('start_photo') else '❌'}",
-            f"    Ombor           {'✅' if ph.get('ombor') else '❌'}",
             f"    Bo'sh joy       {'✅' if ph.get('bosh_joy') else '❌'}",
             "",
             "✨  <b>ISH MUVAFFAQIYATLI YAKUNLANDI</b>  ✨",
@@ -298,7 +297,6 @@ def final_report_card(
 def photo_album_caption(kind: str, *, worker_name: str = "") -> str:
     titles = {
         "start": "Boshlash — yuk",
-        "ombor": "Ombordagi yuklar",
         "bosh_joy": "Bo'shagan joy",
     }
     who = f" · {he(worker_name)}" if worker_name else ""
