@@ -6,17 +6,18 @@ import logging
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 import storage
-from config import get_group_id, settings
 from keyboards import private_keyboard_for
 from services.group_panel import notify_session_change
+from services.group_resolve import resolve_group_chat_id
 from states import FinishStates
 from texts import BTN_FINISH
-from ui import final_report_card, photo_album_caption, photo_prompt
+from ui import final_report_card, he, photo_album_caption, photo_prompt
 
 router = Router(name="finish")
 log = logging.getLogger(__name__)
@@ -47,6 +48,60 @@ async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
     return None
 
 
+async def _send_html(bot: Bot, chat_id: int, text: str) -> bool:
+    try:
+        await bot.send_message(chat_id, text, parse_mode="HTML")
+        return True
+    except TelegramBadRequest as e:
+        log.warning("HTML xabar yuborilmadi (%s): %s", chat_id, e)
+        try:
+            await bot.send_message(chat_id, text)
+            return True
+        except Exception as e2:
+            log.error("Matn ham yuborilmadi: %s", e2)
+            return False
+
+
+async def _send_group_finish_report(bot: Bot, sess: dict[str, Any], report: str) -> bool:
+    group_id = await resolve_group_chat_id(
+        bot, prefer=sess.get("group_chat_id")
+    )
+    if not group_id:
+        log.error("Guruh ID yo'q — hisobot guruhga ketmadi")
+        return False
+
+    name = sess.get("full_name") or "Noma'lum"
+    header = f"🏁  <b>{he(name)}</b> ishini yakunladi\n\n"
+    ok = await _send_html(bot, group_id, header + report)
+
+    if sess.get("start_photo"):
+        try:
+            await bot.send_photo(
+                group_id,
+                sess["start_photo"],
+                caption=photo_album_caption("start", worker_name=name),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            log.warning("Boshlash rasmi guruhga: %s", e)
+
+    for key in ("ombor", "bosh_joy"):
+        fid = (sess.get("finish_photos") or {}).get(key)
+        if not fid:
+            continue
+        try:
+            await bot.send_photo(
+                group_id,
+                fid,
+                caption=photo_album_caption(key, worker_name=name),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            log.warning("Surat %s guruhga: %s", key, e)
+
+    return ok
+
+
 @router.message(F.text == BTN_FINISH, F.chat.type == ChatType.PRIVATE)
 async def finish_from_private(message: Message, state: FSMContext, bot: Bot) -> None:
     uid = message.from_user.id if message.from_user else 0
@@ -66,7 +121,7 @@ async def finish_ombor(message: Message, state: FSMContext) -> None:
     s.setdefault("finish_photos", {})["ombor"] = message.photo[-1].file_id
     await state.set_state(FinishStates.waiting_bosh_joy_photo)
     await message.answer(
-        photo_prompt(2, 2, "Tashqaridagi bo'sh joy", "Yuk olib kirilgandan keyin bo'sh qolgan joy"),
+        photo_prompt(2, 2, "Tashqaridagi bo'sh joy", "Yuk olib kirilgach tashqarida bo'sh qolgan joy"),
         parse_mode="HTML",
     )
 
@@ -78,42 +133,26 @@ async def finish_bosh_joy(message: Message, state: FSMContext, bot: Bot) -> None
     s = storage.get_session(uid)
     if not s:
         await state.clear()
-        return
+        return await message.answer("⚠️  Sessiya topilmadi.", parse_mode="HTML")
+
     s.setdefault("finish_photos", {})["bosh_joy"] = message.photo[-1].file_id
     await state.clear()
 
-    name = s["full_name"]
     report = final_report_card(s)
-    group_id = get_group_id() or settings()["group_id"]
-
-    if group_id:
-        await bot.send_message(
-            group_id,
-            f"🏁  <b>{name}</b> ishini yakunladi\n\n{report}",
-            parse_mode="HTML",
-        )
-        if s.get("start_photo"):
-            await bot.send_photo(
-                group_id,
-                s["start_photo"],
-                caption=photo_album_caption("start", worker_name=name),
-                parse_mode="HTML",
-            )
-        for key in ("ombor", "bosh_joy"):
-            fid = (s.get("finish_photos") or {}).get(key)
-            if fid:
-                await bot.send_photo(
-                    group_id,
-                    fid,
-                    caption=photo_album_caption(key, worker_name=name),
-                    parse_mode="HTML",
-                )
+    group_ok = await _send_group_finish_report(bot, s, report)
 
     storage.end_user_session(uid)
     await notify_session_change(bot)
 
+    extra = ""
+    if not group_ok:
+        extra = (
+            "\n\n⚠️  <i>Guruhga yuborib bo'lmadi. "
+            "/guruh va GROUP_ID ni tekshiring.</i>"
+        )
+
     await message.answer(
-        report,
+        report + extra,
         parse_mode="HTML",
         reply_markup=private_keyboard_for(uid),
     )

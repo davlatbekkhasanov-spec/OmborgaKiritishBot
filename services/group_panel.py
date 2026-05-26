@@ -9,8 +9,7 @@ from aiogram.exceptions import TelegramBadRequest
 
 import app_context
 import storage
-from config import get_group_id, settings
-from services.group_check import verify_group_access, GroupConfigError
+from services.group_resolve import resolve_group_chat_id
 from ui import group_live_card
 
 log = logging.getLogger(__name__)
@@ -20,13 +19,7 @@ async def ensure_group_panel(bot: Bot) -> bool:
     """Birinchi ishchi boshlaganda guruhda LIVE xabar."""
     if storage.group_panel.get("message_id"):
         return True
-    group_id = get_group_id() or settings()["group_id"]
-    if not group_id:
-        try:
-            await verify_group_access(bot)
-            group_id = get_group_id()
-        except GroupConfigError:
-            return False
+    group_id = await resolve_group_chat_id(bot)
     if not group_id:
         return False
     try:

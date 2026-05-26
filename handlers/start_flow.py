@@ -11,9 +11,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 import storage
-from config import get_group_id, settings
 from keyboards import private_keyboard_for
 from services.group_panel import ensure_group_panel, notify_session_change
+from services.group_resolve import resolve_group_chat_id
 from states import StartStates
 from texts import BTN_START_MOVE
 from ui import group_user_started_caption, he, photo_album_caption, session_started_card, start_photo_prompt
@@ -50,8 +50,9 @@ async def start_photo_received(message: Message, state: FSMContext, bot: Bot) ->
     name = user.full_name or "Noma'lum"
     sess = storage.activate_session(user.id, name, photo_id)
 
-    group_id = get_group_id() or settings()["group_id"]
+    group_id = await resolve_group_chat_id(bot)
     if group_id:
+        sess["group_chat_id"] = group_id
         try:
             await bot.send_photo(
                 group_id,
@@ -63,6 +64,8 @@ async def start_photo_received(message: Message, state: FSMContext, bot: Bot) ->
             )
         except Exception as e:
             log.warning("Guruhga boshlash rasmi: %s", e)
+    else:
+        log.warning("Guruh ID topilmadi — boshlash rasmi shaxsiyda qoldi")
 
     await ensure_group_panel(bot)
     await notify_session_change(bot)
