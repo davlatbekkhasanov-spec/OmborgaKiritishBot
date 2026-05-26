@@ -64,5 +64,19 @@ def zone_round_trip_meter(zone: dict[str, Any]) -> int:
 
 
 def zone_deep_link(bot_username: str, zone_code: str) -> str:
+    """QR chop etish — kamera odatda https ni yaxshi ochadi."""
+    return bot_web_deep_link(bot_username, f"zone_{zone_code}")
+
+
+def bot_web_deep_link(bot_username: str, start_param: str) -> str:
     user = (bot_username or "").strip().lstrip("@")
-    return f"https://t.me/{user}?start=zone_{zone_code}"
+    return f"https://t.me/{user}?start={start_param}"
+
+
+def bot_app_deep_link(bot_username: str, start_param: str) -> str:
+    """
+    NFC stiker — to'g'ridan-to'g'ri Telegram ilovasi (brauzer emas).
+    Masalan: tg://resolve?domain=Bot&start=reys
+    """
+    user = (bot_username or "").strip().lstrip("@")
+    return f"tg://resolve?domain={user}&start={start_param}"

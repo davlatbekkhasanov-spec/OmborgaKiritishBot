@@ -82,9 +82,28 @@ async def handle_zone_scan(message: Message, bot: Bot, zone_code: str) -> bool:
 
 @router.message(
     F.chat.type == ChatType.PRIVATE,
-    F.text.regexp(r"(?i)(?:start=)?zone_[a-z0-9_]+|t\.me/\w+\?start=zone_"),
+    F.text.regexp(
+        r"(?i)(?:start=)?zone_[a-z0-9_]+|t\.me/\w+\?start=zone_|tg://.+\?start=zone_"
+    ),
 )
 async def on_qr_text_paste(message: Message, bot: Bot) -> None:
     zone = parse_zone_from_text(message.text or "")
     if zone:
         await handle_zone_scan(message, bot, zone)
+
+
+@router.message(
+    F.chat.type == ChatType.PRIVATE,
+    F.text.regexp(r"(?i)(?:^|/)start\s+reys\b|(?:^|[?&])start=reys\b|tg://.+\?start=reys"),
+)
+async def on_reys_text_paste(message: Message, bot: Bot) -> None:
+    from qr_parse import parse_reys_from_text
+
+    if not parse_reys_from_text(message.text or ""):
+        return
+    user = message.from_user
+    if not user:
+        return
+    from handlers.zone_pick import send_trip_started
+
+    await send_trip_started(bot, message.chat.id, user.id)

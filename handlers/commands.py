@@ -22,7 +22,7 @@ from services.group_check import (
 )
 from handlers.zone_pick import send_zone_picker
 from texts import BTN_ZONES_MENU
-from zones_config import ZONES, zone_deep_link
+from zones_config import ZONES, bot_app_deep_link, zone_deep_link
 from ui import he, main_hint_card, zones_list_card
 
 router = Router(name="commands")
@@ -30,12 +30,29 @@ log = logging.getLogger(__name__)
 
 
 async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
+    args = (command.args or "").strip().lower()
+    uid = message.from_user.id if message.from_user else 0
+
+    if args == "reys":
+        if message.chat.type != ChatType.PRIVATE:
+            return await message.answer(
+                "📦  Reys uchun botga <b>shaxsiy</b> yozing yoki NFC ni shu yerda ishlating.",
+                parse_mode="HTML",
+            )
+        from handlers.zone_pick import send_trip_started
+
+        await send_trip_started(bot, message.chat.id, uid)
+        await message.answer(
+            "⌨️  Tugmalar:",
+            reply_markup=private_keyboard_for(uid),
+        )
+        return
+
     zone = storage.parse_zone_payload(command.args)
     if zone:
         from handlers.qr import handle_zone_scan
 
         ok = await handle_zone_scan(message, bot, zone)
-        uid = message.from_user.id if message.from_user else 0
         if uid:
             await message.answer(
                 "⌨️  Tugmalar:",
@@ -112,6 +129,31 @@ async def cmd_zones_menu(message: Message, bot: Bot) -> None:
     await cmd_zones(message, bot)
 
 
+async def cmd_nfcprint(message: Message) -> None:
+    """NFC stikerlar uchun tg:// havolalar (brauzersiz)."""
+    bot_user = app_context.bot_username
+    if not bot_user:
+        return await message.answer("Bot username topilmadi.", parse_mode="HTML")
+
+    lines = [
+        "📲  <b>NFC stiker havolalari</b>\n",
+        "<i>https emas — faqat tg:// yozing (NFC Tools → URL)</i>\n",
+        "━━━━━━━━━━━━━━━━━━━━\n",
+        f"\n<b>📦 Reys boshlash</b> (yuk olish joyi)\n"
+        f"<code>{bot_app_deep_link(bot_user, 'reys')}</code>\n",
+        "\n<b>Zonalar (reys yopish):</b>\n",
+    ]
+    for code, z in ZONES.items():
+        lines.append(
+            f"\n<b>{he(z['zone_name'])}</b>\n"
+            f"<code>{bot_app_deep_link(bot_user, f'zone_{code}')}</code>"
+        )
+    lines.append(
+        "\n\n<i>Telegram → Sozlamalar → NFC yoqilgan bo'lsin.</i>"
+    )
+    await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
 async def cmd_qrprint(message: Message) -> None:
     bot_user = app_context.bot_username
     if not bot_user:
@@ -133,3 +175,4 @@ router.message.register(cmd_guruh, Command("guruh"))
 router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_qrprint, Command("qrprint"))
+router.message.register(cmd_nfcprint, Command("nfcprint"))

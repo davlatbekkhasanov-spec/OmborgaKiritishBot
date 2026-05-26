@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 
 load_dotenv(ROOT / ".env")
 
-from zones_config import ZONES, zone_deep_link
+from zones_config import ZONES, bot_app_deep_link, zone_deep_link
 
 
 def make_qr_image(url: str, title: str, subtitle: str, out_path: Path) -> None:
@@ -136,11 +136,25 @@ def main() -> None:
         print(f"OK  {code}  ->  {code}.png")
 
     urls_file.write_text("".join(lines), encoding="utf-8")
+
+    nfc_lines = [
+        f"Bot: @{bot}\n",
+        "NFC Tools → URL (https emas, faqat tg://)\n",
+        "-" * 40 + "\n",
+        f"REYS boshlash\n{bot_app_deep_link(bot, 'reys')}\n\n",
+    ]
+    for code, z in ZONES.items():
+        nfc_lines.append(
+            f"{z['zone_name']}\n{bot_app_deep_link(bot, f'zone_{code}')}\n\n"
+        )
+    (out_dir / "havolalar_nfc.txt").write_text("".join(nfc_lines), encoding="utf-8")
+
     write_html(bot, out_dir)
     print(f"\nTayyor: {out_dir.resolve()}")
     print("  - har zona: SKLAD_1.png ...")
     print("  - chop_etish.html — brauzerdan chop etish")
-    print("  - havolalar.txt — havolalar ro'yxati")
+    print("  - havolalar.txt — QR (https)")
+    print("  - havolalar_nfc.txt — NFC (tg://)")
 
 
 if __name__ == "__main__":

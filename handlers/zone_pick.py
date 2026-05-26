@@ -19,14 +19,18 @@ async def send_trip_started(bot: Bot, chat_id: int, user_id: int) -> None:
 
     await notify_session_change(bot)
     bot_user = app_context.bot_username or "BOT"
+    extra = ""
+    if "\n\n" in msg:
+        extra = f"\n\n{he(msg.split('\n\n', 1)[1])}"
     await bot.send_message(
         chat_id,
         f"{banner('REYS BOSHLANDI', icon='🚛')}\n\n"
-        "1️⃣  Zonadagi <b>QR</b> ni skaner qiling\n"
+        "1️⃣  Zonadagi <b>QR</b> yoki <b>NFC</b>\n"
         f"    <code>t.me/{he(bot_user)}?start=zone_...</code>\n\n"
         "2️⃣  Yoki <b>Zonani tanlash</b>\n\n"
         "<i>📏 Yuk bilan manzilgacha masofa</i>\n"
-        "<i>Keyingi «Reys oldim»gacha — dam va yuksiz yurish avto</i>",
+        "<i>Keyingi «Reys oldim»gacha — dam va yuksiz yurish avto</i>"
+        f"{extra}",
         parse_mode="HTML",
         reply_markup=zone_inline_keyboard(),
     )

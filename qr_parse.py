@@ -18,3 +18,13 @@ def parse_zone_from_text(text: str) -> str | None:
     if re.fullmatch(r"[A-Z0-9_]{2,32}", raw.upper()):
         return raw.upper()
     return None
+
+
+def parse_reys_from_text(text: str) -> bool:
+    """NFC/QR matndan reys boshlash (start=reys)."""
+    raw = (text or "").strip()
+    if not raw:
+        return False
+    if raw.lower() in ("reys", "/start reys"):
+        return True
+    return bool(re.search(r"(?:^|[?&])start=reys(?:\s|$|&)", raw, re.I))
