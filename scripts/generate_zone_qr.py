@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 
 load_dotenv(ROOT / ".env")
 
-from zones_config import ZONES, bot_app_deep_link, zone_deep_link
+from zones_config import ZONES, bot_android_intent_deep_link, bot_app_deep_link, zone_deep_link
 
 
 def make_qr_image(url: str, title: str, subtitle: str, out_path: Path) -> None:
@@ -139,13 +139,16 @@ def main() -> None:
 
     nfc_lines = [
         f"Bot: @{bot}\n",
-        "NFC Tools → URL (https emas, faqat tg://)\n",
+        "Android: NFC Tools → Other → Custom URL (intent:// to'liq)\n",
+        "Avval Erase tag. «URL/Link» ishlatmang — https qo'shadi.\n",
         "-" * 40 + "\n",
-        f"REYS boshlash\n{bot_app_deep_link(bot, 'reys')}\n\n",
+        f"REYS (intent — tavsiya)\n{bot_android_intent_deep_link(bot, 'reys')}\n\n",
+        f"REYS (tg — ba'zi telefonlarda brauzer)\n{bot_app_deep_link(bot, 'reys')}\n\n",
     ]
     for code, z in ZONES.items():
         nfc_lines.append(
-            f"{z['zone_name']}\n{bot_app_deep_link(bot, f'zone_{code}')}\n\n"
+            f"{z['zone_name']}\n"
+            f"{bot_android_intent_deep_link(bot, f'zone_{code}')}\n\n"
         )
     (out_dir / "havolalar_nfc.txt").write_text("".join(nfc_lines), encoding="utf-8")
 

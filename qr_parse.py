@@ -9,6 +9,13 @@ def parse_zone_from_text(text: str) -> str | None:
     raw = (text or "").strip()
     if not raw:
         return None
+    m = re.search(
+        r"(?:intent://|tg://|https?://)?[^?\s]*\?[^#]*start=zone_([A-Za-z0-9_]+)",
+        raw,
+        re.I,
+    )
+    if m:
+        return m.group(1).upper()
     m = re.search(r"start=zone_([A-Za-z0-9_]+)", raw, re.I)
     if m:
         return m.group(1).upper()
@@ -27,4 +34,11 @@ def parse_reys_from_text(text: str) -> bool:
         return False
     if raw.lower() in ("reys", "/start reys"):
         return True
-    return bool(re.search(r"(?:^|[?&])start=reys(?:\s|$|&)", raw, re.I))
+    return bool(
+        re.search(
+            r"(?:intent://|tg://|https?://)[^#]*[?&]start=reys(?:\s|$|&|#)",
+            raw,
+            re.I,
+        )
+        or re.search(r"(?:^|[?&])start=reys(?:\s|$|&)", raw, re.I)
+    )

@@ -75,8 +75,20 @@ def bot_web_deep_link(bot_username: str, start_param: str) -> str:
 
 def bot_app_deep_link(bot_username: str, start_param: str) -> str:
     """
-    NFC stiker — to'g'ridan-to'g'ri Telegram ilovasi (brauzer emas).
+    NFC stiker — tg:// (ba'zi telefonlarda baribir brauzer ochiladi).
     Masalan: tg://resolve?domain=Bot&start=reys
     """
     user = (bot_username or "").strip().lstrip("@")
     return f"tg://resolve?domain={user}&start={start_param}"
+
+
+def bot_android_intent_deep_link(bot_username: str, start_param: str) -> str:
+    """
+    Android NFC — Telegram ilovasini majburiy ochadi (brauzer emas).
+    NFC Tools → Other → Custom URL / URI — shu qatorni to'liq yozing.
+    """
+    user = (bot_username or "").strip().lstrip("@")
+    return (
+        f"intent://resolve?domain={user}&start={start_param}"
+        "#Intent;scheme=tg;package=org.telegram.messenger;end"
+    )

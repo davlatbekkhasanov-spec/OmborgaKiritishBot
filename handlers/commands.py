@@ -22,7 +22,11 @@ from services.group_check import (
 )
 from handlers.zone_pick import send_zone_picker
 from texts import BTN_ZONES_MENU
-from zones_config import ZONES, bot_app_deep_link, zone_deep_link
+from zones_config import (
+    ZONES,
+    bot_android_intent_deep_link,
+    zone_deep_link,
+)
 from ui import he, main_hint_card, zones_list_card
 
 router = Router(name="commands")
@@ -130,27 +134,35 @@ async def cmd_zones_menu(message: Message, bot: Bot) -> None:
 
 
 async def cmd_nfcprint(message: Message) -> None:
-    """NFC stikerlar uchun tg:// havolalar (brauzersiz)."""
+    """NFC stikerlar — Android intent:// (brauzersiz)."""
     bot_user = app_context.bot_username
     if not bot_user:
         return await message.answer("Bot username topilmadi.", parse_mode="HTML")
 
+    reys_intent = bot_android_intent_deep_link(bot_user, "reys")
     lines = [
-        "📲  <b>NFC stiker havolalari</b>\n",
-        "<i>https emas — faqat tg:// yozing (NFC Tools → URL)</i>\n",
+        "📲  <b>Android NFC (brauzer ochilmasin)</b>\n",
+        "<b>1.</b> NFC Tools → <b>Erase tag</b> (eski https o'chsin)\n",
+        "<b>2.</b> Write → <b>Other</b> → <b>Custom URL / URI</b>\n",
+        "<b>3.</b> Quyidagi <b>intent://</b> qatorni to'liq nusxalang\n",
+        "<b>4.</b> «URL / Link» emas — u avtomatik https qo'shadi ❌\n",
         "━━━━━━━━━━━━━━━━━━━━\n",
-        f"\n<b>📦 Reys boshlash</b> (yuk olish joyi)\n"
-        f"<code>{bot_app_deep_link(bot_user, 'reys')}</code>\n",
-        "\n<b>Zonalar (reys yopish):</b>\n",
+        f"\n<b>📦 Reys</b>\n<code>{reys_intent}</code>\n",
+        "\n<b>Zonalar:</b> /nfcprint_zonalar\n",
+        "\n<i>tg:// ba'zi telefonlarda Safari/Chrome ochadi — "
+        "stikerni qayta yozing.</i>",
     ]
+    await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
+
+
+async def cmd_nfcprint_zones(message: Message) -> None:
+    bot_user = app_context.bot_username
+    if not bot_user:
+        return await message.answer("Bot username topilmadi.", parse_mode="HTML")
+    lines = ["📲  <b>Zona NFC (intent://)</b>\n"]
     for code, z in ZONES.items():
-        lines.append(
-            f"\n<b>{he(z['zone_name'])}</b>\n"
-            f"<code>{bot_app_deep_link(bot_user, f'zone_{code}')}</code>"
-        )
-    lines.append(
-        "\n\n<i>Telegram → Sozlamalar → NFC yoqilgan bo'lsin.</i>"
-    )
+        link = bot_android_intent_deep_link(bot_user, f"zone_{code}")
+        lines.append(f"\n<b>{he(z['zone_name'])}</b>\n<code>{link}</code>")
     await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
 
@@ -176,3 +188,4 @@ router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_qrprint, Command("qrprint"))
 router.message.register(cmd_nfcprint, Command("nfcprint"))
+router.message.register(cmd_nfcprint_zones, Command("nfcprint_zonalar"))
