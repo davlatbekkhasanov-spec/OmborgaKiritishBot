@@ -24,6 +24,14 @@ async def complete_zone_for_user(
     *,
     auto_start_trip: bool = True,
 ) -> bool:
+    if storage.user_on_break(user_id):
+        await bot.send_message(
+            chat_id,
+            "⚠️  Dam vaqtida. Avval <b>Davom etish</b> bosing.",
+            parse_mode="HTML",
+        )
+        return False
+
     if not storage.has_user_session(user_id):
         await bot.send_message(
             chat_id,
@@ -52,6 +60,8 @@ async def complete_zone_for_user(
         trip_complete_card(
             zone_name=record["zone_name"],
             distance_meter=record["distance_meter"],
+            leg_meter=record.get("leg_meter"),
+            return_meter=record.get("return_meter"),
             horizontal_meter=record.get("horizontal_meter"),
             effort_meter=record.get("effort_meter"),
             duration_sec=record["duration_sec"],

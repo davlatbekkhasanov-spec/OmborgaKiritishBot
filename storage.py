@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from time_util import ensure_aware, now_dt
-from zones_config import ZONES  # noqa: F401 — keyboards/storage.ZONES
+from zones_config import ZONES, zone_leg_meter, zone_round_trip_meter  # noqa: F401
 
 # user_id -> shaxsiy sessiya
 user_sessions: dict[int, dict[str, Any]] = {}
@@ -30,6 +30,9 @@ def _new_session_dict(
         "trips": [],
         "active_trip": None,
         "finish_photos": {},
+        "breaks": [],
+        "on_break": False,
+        "break_started_at": None,
     }
 
 
@@ -111,10 +114,49 @@ def activate_session(user_id: int, full_name: str, start_photo: str) -> dict[str
     return sess
 
 
+def user_on_break(user_id: int) -> bool:
+    s = get_session(user_id)
+    return bool(s and s.get("on_break"))
+
+
+def total_break_sec(sess: dict[str, Any]) -> int:
+    return sum(int(b.get("duration_sec", 0)) for b in sess.get("breaks") or [])
+
+
+def try_start_break(user_id: int) -> tuple[bool, str]:
+    s = get_session(user_id)
+    if not s or s.get("status") != "active":
+        return False, "Avval 📸 Boshlash bilan ishni boshlang."
+    if s.get("on_break"):
+        return False, "Siz allaqachon dam olmoqdasiz."
+    if s.get("active_trip"):
+        return False, "Avval reysni yakunlang (zona / QR)."
+    s["on_break"] = True
+    s["break_started_at"] = now_dt()
+    return True, "Dam boshlandi ☕"
+
+
+def try_end_break(user_id: int) -> tuple[bool, str | int]:
+    s = get_session(user_id)
+    if not s or not s.get("on_break"):
+        return False, "Dam aktiv emas. «Dam oldim» bosing."
+    started = s.get("break_started_at") or now_dt()
+    end = now_dt()
+    sec = max(0, int((end - ensure_aware(started)).total_seconds()))
+    s["on_break"] = False
+    s["break_started_at"] = None
+    s.setdefault("breaks", []).append(
+        {"start": ensure_aware(started), "end": end, "duration_sec": sec}
+    )
+    return True, sec
+
+
 def try_start_trip(user_id: int) -> tuple[bool, str]:
     s = get_session(user_id)
     if not s or s.get("status") != "active":
         return False, "Avval 📸 Boshlash — yukingiz rasmini yuboring."
+    if s.get("on_break"):
+        return False, "Dam vaqtida. Avval «Davom etish» bosing."
     if s.get("active_trip"):
         return False, "Ochiq reys bor. Avval zonani yoping (QR yoki tanlash)."
     tid = next_trip_id()
@@ -139,6 +181,8 @@ def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str | dict[st
     end = now_dt()
     start = ensure_aware(open_trip["trip_start_time"])
     duration_sec = max(0, int((end - start).total_seconds()))
+    leg = zone_leg_meter(zone)
+    total = zone_round_trip_meter(zone)
     record = {
         "id": open_trip["id"],
         "user_id": user_id,
@@ -148,8 +192,10 @@ def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str | dict[st
         "zone_name": zone["zone_name"],
         "duration_sec": duration_sec,
         "horizontal_meter": zone["horizontal_meter"],
-        "effort_meter": zone["effort_meter"],
-        "distance_meter": zone["effort_meter"],
+        "effort_meter": leg,
+        "leg_meter": leg,
+        "return_meter": leg,
+        "distance_meter": total,
     }
     s.setdefault("trips", []).append(record)
     s["active_trip"] = None
@@ -162,6 +208,10 @@ def begin_user_finish(user_id: int) -> tuple[bool, str]:
         return False, "Aktiv jarayon yo'q."
     if s.get("active_trip"):
         return False, "Ochiq reys bor — avval zonani yoping."
+    if s.get("on_break"):
+        ok, _ = try_end_break(user_id)
+        if not ok:
+            return False, "Avval «Davom etish» bilan damni yoping."
     s["status"] = "finishing"
     s["finish_photos"] = {}
     return True, ""

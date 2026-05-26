@@ -8,7 +8,7 @@ from typing import Any
 
 import storage
 from stats import ranked_workers, session_metrics, user_session_metrics, worker_stats
-from texts import BRAND, BTN_PICK_ZONE, BTN_START_MOVE, BTN_TRIP
+from texts import BRAND, BTN_BREAK_END, BTN_BREAK_START, BTN_PICK_ZONE, BTN_START_MOVE, BTN_TRIP
 from time_util import (
     display_now,
     ensure_aware,
@@ -82,8 +82,9 @@ def main_hint_card(*, name: str, user_id: int) -> str:
         "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃  1️⃣  <b>{he(BTN_START_MOVE)}</b>\n"
         f"┃      Yukingiz <b>1 ta rasm</b> — shu bilan boshlanadi\n"
-        f"┃  2️⃣  <b>{he(BTN_TRIP)}</b> → QR yoki zona\n"
-        f"┃  3️⃣  <b>🏁 Yakunlash</b> — tugatganda\n"
+        f"┃  2️⃣  <b>{he(BTN_TRIP)}</b> → zona (borish+qaytish)\n"
+        f"┃  3️⃣  <b>{he(BTN_BREAK_START)}</b> — reyslar orasi\n"
+        f"┃  4️⃣  <b>🏁 Yakunlash</b>\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
         "<i>📣 Guruhda hammangiz statistikasi ko'rinadi</i>\n\n"
         f"<i>🕐 {he(display_now())}</i>"
@@ -168,20 +169,27 @@ def trip_complete_card(
     distance_meter: int,
     duration_sec: int,
     worker_name: str,
+    leg_meter: int | None = None,
+    return_meter: int | None = None,
     horizontal_meter: int | None = None,
     effort_meter: int | None = None,
 ) -> str:
-    ekv = effort_meter if effort_meter is not None else distance_meter
-    gor = horizontal_meter
-    dist_line = f"📏  Ekvivalent: <b>{ekv} m</b>"
-    if gor is not None and gor != ekv:
-        dist_line = f"📏  Gor: {gor} m  ·  Ekv: <b>{ekv} m</b>"
+    leg = leg_meter if leg_meter is not None else effort_meter or distance_meter
+    ret = return_meter if return_meter is not None else leg
+    total = distance_meter
+    dist_line = (
+        f"📏  Borish <b>{leg} m</b>  +  Qaytish <b>{ret} m</b>\n"
+        f"    Jami yurish: <b>{total} m</b>"
+    )
+    if horizontal_meter is not None and horizontal_meter != leg:
+        dist_line += f"\n    <i>Goriz. {horizontal_meter} m (bir yo'l)</i>"
     return (
         f"{banner('REYS YAKUN', icon='✅')}\n\n"
         f"👤  <b>{he(worker_name)}</b>\n"
         f"📦  <b>{he(zone_name)}</b>\n"
         f"{dist_line}\n"
         f"⏱  <b>{fmt_duration_short(duration_sec)}</b>\n\n"
+        f"<i>Keyingi reysdan oldin: {he(BTN_BREAK_START)}</i>\n\n"
         f"<code>{glow_bar(min(100, duration_sec), 12)}</code>"
     )
 
@@ -194,11 +202,14 @@ def zones_list_card(*, bot_username: str) -> str:
             if bot_username
             else f"/start zone_{code}"
         )
+        from zones_config import zone_leg_meter, zone_round_trip_meter
+
         gor = z.get("horizontal_meter", z["distance_meter"])
-        ekv = z.get("effort_meter", z["distance_meter"])
+        leg = zone_leg_meter(z)
+        total = zone_round_trip_meter(z)
         lines.append(
             f"▸  <b>{he(z['zone_name'])}</b>  <code>{he(code)}</code>\n"
-            f"    📏 gor {gor}m · ekv <b>{ekv}m</b>\n"
+            f"    📏 borish {leg}m + qaytish {leg}m = <b>{total}m</b>\n"
             f"    <code>{he(link)}</code>\n"
         )
     lines.append(f"\n<i>🕐 {he(display_now())}</i>")
@@ -232,7 +243,13 @@ def final_report_card(
         "",
         metric_card("📦", "Reyslar", str(m.total_trips), bar_pct=min(100, m.total_trips * 8)),
         "",
-        metric_card("📏", "Jami masofa", fmt_distance_m(m.total_distance)),
+        metric_card("📏", "Jami masofa (bor+qayt)", fmt_distance_m(m.total_distance)),
+        "",
+        metric_card(
+            "☕",
+            "Dam olish",
+            fmt_duration(storage.total_break_sec(sess)),
+        ),
         "",
         "📦  <b>REYSLAR</b>",
         "<code>╭──────────────────────────╮</code>",
@@ -243,10 +260,11 @@ def final_report_card(
         lines.append("<code>│</code>  <i>Reys yo'q</i>")
     else:
         for i, t in enumerate(trips, 1):
+            leg = t.get("leg_meter", t.get("effort_meter", 0))
             lines.append(
-                f"<code>│</code> {i}.  <b>{he(t['zone_name'])}</b>  ·  "
-                f"{fmt_duration_short(t['duration_sec'])}  ·  "
-                f"{t['distance_meter']}m"
+                f"<code>│</code> {i}.  <b>{he(t['zone_name'])}</b>\n"
+                f"<code>│</code>     📏 {leg}+{leg}=<b>{t['distance_meter']}m</b>  ·  "
+                f"⏱ {fmt_duration_short(t['duration_sec'])}"
             )
     lines.append("<code>╰──────────────────────────╯</code>")
 

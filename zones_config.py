@@ -53,6 +53,16 @@ ZONES: dict[str, dict[str, Any]] = {
 }
 
 
+def zone_leg_meter(zone: dict[str, Any]) -> int:
+    """Bitta yo'nalish (yuk olish nuqtasi ↔ zona)."""
+    return int(zone.get("effort_meter", zone.get("distance_meter", 0)))
+
+
+def zone_round_trip_meter(zone: dict[str, Any]) -> int:
+    """Borish + yuk bilan qaytish."""
+    return zone_leg_meter(zone) * 2
+
+
 def zone_deep_link(bot_username: str, zone_code: str) -> str:
     user = (bot_username or "").strip().lstrip("@")
     return f"https://t.me/{user}?start=zone_{zone_code}"

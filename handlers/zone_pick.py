@@ -24,7 +24,8 @@ async def send_trip_started(bot: Bot, chat_id: int, user_id: int) -> None:
         f"{banner('REYS BOSHLANDI', icon='🚛')}\n\n"
         "1️⃣  Zonadagi <b>QR</b> ni skaner qiling\n"
         f"    <code>t.me/{he(bot_user)}?start=zone_...</code>\n\n"
-        "2️⃣  Yoki <b>Zonani tanlash</b>",
+        "2️⃣  Yoki <b>Zonani tanlash</b>\n\n"
+        "<i>📏 Masofa: borish + yuk bilan qaytish</i>",
         parse_mode="HTML",
         reply_markup=zone_inline_keyboard(),
     )
