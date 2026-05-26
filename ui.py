@@ -235,9 +235,23 @@ def final_report_card(
         metric_card("📏", "Jami masofa", fmt_distance_m(m.total_distance)),
         "",
         metric_card(
+            "📏",
+            "O'rtacha masofa / reys",
+            (
+                fmt_distance_m(m.total_distance // m.total_trips)
+                if m.total_trips
+                else "—"
+            ),
+        ),
+        "",
+        metric_card(
             "⏱",
-            "O'rtacha reys",
-            fmt_duration(m.avg_trip_sec) if m.total_trips else "—",
+            "O'rtacha reys vaqti",
+            (
+                fmt_duration_short(m.avg_trip_sec)
+                if m.total_trips
+                else "—"
+            ),
         ),
         "",
         "📦  <b>REYSLAR</b>",
