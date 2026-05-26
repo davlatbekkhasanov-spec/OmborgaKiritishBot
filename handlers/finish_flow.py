@@ -1,4 +1,4 @@
-"""Yakunlash — suratlar va final hisobot."""
+"""Yakunlash — faqat o'z sessiyasi."""
 
 from __future__ import annotations
 
@@ -10,53 +10,25 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-import app_context
 import storage
+from config import get_group_id, settings
+from keyboards import private_keyboard_for
+from services.group_panel import notify_session_change
 from states import FinishStates
 from texts import BTN_FINISH
-from ui import final_report_card, group_session_closed_card, photo_album_caption, photo_prompt
+from ui import final_report_card, photo_album_caption, photo_prompt
 
 router = Router(name="finish")
 log = logging.getLogger(__name__)
 
 
-async def _close_group_live_panel(bot: Bot) -> None:
-    sess = storage.active_session
-    if not sess:
-        return
-    chat_id = sess.get("group_chat_id")
-    msg_id = sess.get("group_message_id")
-    if not chat_id or not msg_id:
-        return
-    try:
-        await bot.edit_message_text(
-            group_session_closed_card(),
-            chat_id=chat_id,
-            message_id=msg_id,
-            parse_mode="HTML",
-            reply_markup=None,
-        )
-    except Exception as e:
-        log.warning("Guruh panelini yopish: %s", e)
-
-
 async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
-    if not storage.has_active_session():
-        return "⚠️  Aktiv jarayon yo'q. Avval <b>Boshlash</b> bosing."
-    if not storage.can_manage(user_id):
-        return "⛔  <b>Yakunlash</b> faqat mas'ul/admin uchun."
-    if storage.active_trips:
-        n = len(storage.active_trips)
-        return (
-            f"⚠️  <b>{n}</b> ta ochiq reys bor — avval yakunlang "
-            "(QR yoki Zonani tanlash)."
-        )
-
-    storage.active_session["status"] = "finishing"
-    if app_context.ticker:
-        app_context.ticker.stop()
+    ok, err = storage.begin_user_finish(user_id)
+    if not ok:
+        return f"⚠️  {err}"
 
     await state.set_state(FinishStates.waiting_ombor_photo)
+    await state.update_data(finish_user_id=user_id)
     try:
         await bot.send_message(
             user_id,
@@ -64,15 +36,14 @@ async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
                 1,
                 2,
                 "Omborga olib kirilgan yuklar",
-                "Yuklar ombor ichida joylashganini ko'rsating",
+                "Siz olib kirgan yuklar omborda",
             ),
             parse_mode="HTML",
         )
     except Exception:
-        return (
-            "Bot bilan shaxsiy chatda /start bosing, "
-            "keyin qayta <b>Yakunlash</b> tugmasini bosing."
-        )
+        storage.cancel_user_finish(user_id)
+        await state.clear()
+        return "Avval botda /start bosing."
     return None
 
 
@@ -86,53 +57,77 @@ async def finish_from_private(message: Message, state: FSMContext, bot: Bot) -> 
 
 @router.message(StateFilter(FinishStates.waiting_ombor_photo), F.photo)
 async def finish_ombor(message: Message, state: FSMContext) -> None:
-    storage.photos["ombor"] = message.photo[-1].file_id
+    data = await state.get_data()
+    uid = data.get("finish_user_id") or (message.from_user.id if message.from_user else 0)
+    s = storage.get_session(uid)
+    if not s:
+        await state.clear()
+        return await message.answer("⚠️  Sessiya topilmadi.", parse_mode="HTML")
+    s.setdefault("finish_photos", {})["ombor"] = message.photo[-1].file_id
     await state.set_state(FinishStates.waiting_bosh_joy_photo)
     await message.answer(
-        photo_prompt(
-            2,
-            2,
-            "Tashqaridagi bo'sh joy",
-            "Yuk olib kirilgach tashqarida bo'sh qolgan joy",
-        ),
+        photo_prompt(2, 2, "Tashqaridagi bo'sh joy", "Yuk olib kirilgandan keyin bo'sh qolgan joy"),
         parse_mode="HTML",
     )
 
 
 @router.message(StateFilter(FinishStates.waiting_bosh_joy_photo), F.photo)
 async def finish_bosh_joy(message: Message, state: FSMContext, bot: Bot) -> None:
-    storage.photos["bosh_joy"] = message.photo[-1].file_id
+    data = await state.get_data()
+    uid = data.get("finish_user_id") or (message.from_user.id if message.from_user else 0)
+    s = storage.get_session(uid)
+    if not s:
+        await state.clear()
+        return
+    s.setdefault("finish_photos", {})["bosh_joy"] = message.photo[-1].file_id
     await state.clear()
 
-    report = final_report_card()
-    sess = storage.active_session
-    group_id = (sess or {}).get("group_chat_id")
+    name = s["full_name"]
+    report = final_report_card(s)
+    group_id = get_group_id() or settings()["group_id"]
 
     if group_id:
-        await bot.send_message(group_id, report, parse_mode="HTML")
+        await bot.send_message(
+            group_id,
+            f"🏁  <b>{name}</b> ishini yakunladi\n\n{report}",
+            parse_mode="HTML",
+        )
+        if s.get("start_photo"):
+            await bot.send_photo(
+                group_id,
+                s["start_photo"],
+                caption=photo_album_caption("start", worker_name=name),
+                parse_mode="HTML",
+            )
         for key in ("ombor", "bosh_joy"):
-            fid = storage.photos.get(key)
+            fid = (s.get("finish_photos") or {}).get(key)
             if fid:
                 await bot.send_photo(
                     group_id,
                     fid,
-                    caption=photo_album_caption(key),
+                    caption=photo_album_caption(key, worker_name=name),
                     parse_mode="HTML",
                 )
 
-    await _close_group_live_panel(bot)
-    await message.answer(report, parse_mode="HTML")
-    storage.reset_session()
+    storage.end_user_session(uid)
+    await notify_session_change(bot)
+
+    await message.answer(
+        report,
+        parse_mode="HTML",
+        reply_markup=private_keyboard_for(uid),
+    )
 
 
 @router.message(Command("cancel"), StateFilter(FinishStates))
-async def finish_cancel(message: Message, state: FSMContext) -> None:
+async def finish_cancel(message: Message, state: FSMContext, bot: Bot) -> None:
+    data = await state.get_data()
+    uid = data.get("finish_user_id") or (message.from_user.id if message.from_user else 0)
     await state.clear()
-    if storage.active_session:
-        storage.active_session["status"] = "active"
-        if app_context.ticker:
-            await app_context.ticker.start()
+    storage.cancel_user_finish(uid)
+    await notify_session_change(bot)
     await message.answer(
-        "❌  Yakunlash bekor qilindi.\nJarayon <b>LIVE</b> davom etmoqda.",
+        "❌  Yakunlash bekor.\nJarayoningiz davom etmoqda.",
         parse_mode="HTML",
+        reply_markup=private_keyboard_for(uid),
     )

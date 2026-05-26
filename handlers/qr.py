@@ -6,9 +6,10 @@ from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
 from aiogram.types import Message
 
-import app_context
 import storage
 from qr_parse import parse_zone_from_text
+from services.group_panel import notify_session_change
+from texts import BTN_START_MOVE
 from ui import he, trip_complete_card
 
 router = Router(name="qr")
@@ -23,37 +24,25 @@ async def complete_zone_for_user(
     *,
     auto_start_trip: bool = True,
 ) -> bool:
-    """Reysni yopish (QR yoki inline zona). QR da ochiq reys bo'lmasa avval boshlanadi."""
-    if not storage.has_active_session():
+    if not storage.has_user_session(user_id):
         await bot.send_message(
             chat_id,
-            "⚠️  Hozircha <b>aktiv jarayon yo'q</b>.",
-            parse_mode="HTML",
-        )
-        return False
-    if not storage.is_participant(user_id):
-        await bot.send_message(
-            chat_id,
-            "⚠️  Avval <b>guruhda</b> «Men qatnashaman» bosing.",
+            f"⚠️  Avval <b>{he(BTN_START_MOVE)}</b> — yuk rasmini yuboring.",
             parse_mode="HTML",
         )
         return False
 
-    if user_id not in storage.active_trips and auto_start_trip:
+    if not storage.user_has_open_trip(user_id) and auto_start_trip:
         ok_start, start_msg = storage.try_start_trip(user_id)
         if not ok_start:
-            await bot.send_message(
-                chat_id,
-                f"⚠️  {he(start_msg)}",
-                parse_mode="HTML",
-            )
+            await bot.send_message(chat_id, f"⚠️  {he(start_msg)}", parse_mode="HTML")
             return False
 
     ok, result = storage.try_complete_trip(user_id, zone_code)
     if not ok:
         hint = ""
         if "Ochiq reys" in str(result):
-            hint = "\n\n👉  Shaxsiy chatda <b>📦 Reys oldim</b> bosing."
+            hint = "\n\n👉  <b>📦 Reys oldim</b> bosing."
         await bot.send_message(chat_id, f"⚠️  {he(result)}{hint}", parse_mode="HTML")
         return False
 
@@ -70,8 +59,7 @@ async def complete_zone_for_user(
         ),
         parse_mode="HTML",
     )
-    if app_context.ticker:
-        await app_context.ticker.refresh()
+    await notify_session_change(bot)
     return True
 
 

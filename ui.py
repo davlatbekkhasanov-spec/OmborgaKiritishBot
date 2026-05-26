@@ -7,8 +7,8 @@ from datetime import datetime
 from typing import Any
 
 import storage
-from stats import SessionMetrics, ranked_workers, session_metrics, worker_stats
-from texts import BRAND, BTN_JOIN, BTN_PICK_ZONE, BTN_TRIP
+from stats import ranked_workers, session_metrics, user_session_metrics, worker_stats
+from texts import BRAND, BTN_PICK_ZONE, BTN_START_MOVE, BTN_TRIP
 from time_util import (
     display_now,
     ensure_aware,
@@ -58,13 +58,6 @@ def live_pulse() -> str:
     return "🔴" if _live_i % 2 else "⚫"
 
 
-def status_chip(status: str) -> str:
-    return {
-        "active": "🟢 LIVE",
-        "finishing": "🏁 YAKUN",
-    }.get(status, "⚪")
-
-
 def metric_card(icon: str, title: str, value: str, *, bar_pct: int | None = None) -> str:
     lines = [f"{icon}  <b>{he(title)}</b>", f"    <code>{he(value)}</code>"]
     if bar_pct is not None:
@@ -72,76 +65,71 @@ def metric_card(icon: str, title: str, value: str, *, bar_pct: int | None = None
     return "\n".join(lines)
 
 
-def welcome_card(*, is_masul: bool, name: str) -> str:
-    role = "Mas'ul paneli" if is_masul else "Ishchi rejimi"
-    return (
-        f"{banner(BRAND, icon='✨')}\n\n"
-        f"👋  <b>{he(name)}</b>\n"
-        f"<i>{he(role)}</i>\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        "┃  🚀  <b>Boshlash</b> — jarayon ochish\n"
-        "┃  🏁  <b>Yakunlash</b> — hisobot + surat\n"
-        "┃  📋  <b>Zonalar</b> — QR havolalar\n"
-        "┃  📌  /id — Telegram ID\n"
-        "┃  🔗  /guruh — guruh tekshiruv\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        f"<i>🕐 {he(display_now())}</i>"
-    )
-
-
-def worker_hint_card(*, name: str, session_active: bool) -> str:
-    greet = f"👋  <b>{he(name)}</b>\n<i>Ishchi rejimi</i>\n\n"
+def main_hint_card(*, name: str, user_id: int) -> str:
+    active = storage.has_user_session(user_id)
     live_note = ""
-    if session_active:
+    if active:
         live_note = (
             f"\n{sep('·')}\n"
-            "🟢  <b>LIVE jarayon ochiq</b>\n"
-            "👉  Guruhda qatnashing, keyin shu yerda reys qiling\n"
+            "🟢  <b>Sizning jarayoningiz aktiv</b>\n"
             f"{sep('·')}\n\n"
         )
     return (
         f"{banner(BRAND, icon='👷')}\n\n"
-        f"{greet}"
+        f"👋  <b>{he(name)}</b>\n"
+        f"<i>Har bir ishchi mustaqil ishlaydi</i>\n"
         f"{live_note}"
         "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        f"┃  🚀  <b>Boshlash</b> — mas'ul\n"
-        f"┃  🏁  <b>Yakunlash</b> — mas'ul\n"
-        f"┃  📋  <b>Zonalar</b> — /zones\n"
-        "┣━━━━━━━━━━━━━━━━━━━━━━━━┫\n"
-        f"┃  1️⃣  Guruhda  <b>{he(BTN_JOIN)}</b>\n"
-        f"┃  2️⃣  Shaxsiyda  <b>{he(BTN_TRIP)}</b>\n"
-        f"┃  3️⃣  QR yoki  <b>{he(BTN_PICK_ZONE)}</b>\n"
+        f"┃  1️⃣  <b>{he(BTN_START_MOVE)}</b>\n"
+        f"┃      Yukingiz <b>1 ta rasm</b> — shu bilan boshlanadi\n"
+        f"┃  2️⃣  <b>{he(BTN_TRIP)}</b> → QR yoki zona\n"
+        f"┃  3️⃣  <b>🏁 Yakunlash</b> — tugatganda\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "<i>⏱ Live  ·  📦 Reys  ·  🏆 Guruhda statistika</i>\n\n"
+        "<i>📣 Guruhda hammangiz statistikasi ko'rinadi</i>\n\n"
         f"<i>🕐 {he(display_now())}</i>"
     )
 
 
-def group_live_card(*, now: datetime | None = None, phase: str = "active") -> str:
+def start_photo_prompt() -> str:
+    return (
+        f"{banner('BOSHLASH', icon='📸')}\n\n"
+        "O'zingiz olib ketadigan <b>yuklarning</b> bitta aniq "
+        "fotosuratini yuboring.\n\n"
+        "<i>Boshqa ishchi ham xohlasa — o'z rasmi bilan "
+        "alohida boshlaydi.</i>"
+    )
+
+
+def session_started_card(*, name: str, session_id: int) -> str:
+    return (
+        f"{banner('ISHLASH BOSHLANDI', icon='✅')}\n\n"
+        f"👤  <b>{he(name)}</b>\n"
+        f"🪪  Sessiya <code>#{session_id}</code>\n\n"
+        f"Endi <b>{he(BTN_TRIP)}</b> bosing va zonaga boring."
+    )
+
+
+def group_live_card(*, now: datetime | None = None, empty: bool = False) -> str:
     now = ensure_aware(now or now_dt())
-    sess = storage.active_session
-    if not sess:
-        return f"{banner('HOLAT', icon='📊')}\n\n<i>Faol jarayon yo'q</i>"
+    users = storage.active_users()
+    if empty or not users:
+        return (
+            f"{banner('OMBOR LIVE', icon='📊')}\n\n"
+            "<i>Hozircha aktiv ishchi yo'q</i>\n\n"
+            f"📸  Shaxsiy chatda <b>{he(BTN_START_MOVE)}</b> — "
+            "yuk rasmi bilan\n\n"
+            f"<i>🕐 {he(display_now())}</i>"
+        )
 
     m = session_metrics(now)
-    sid = sess.get("id", "—")
-    pulse = live_pulse() if phase == "active" else "✅"
-
+    pulse = live_pulse()
     lines = [
-        banner("OMBORGA KIRITISH", icon=pulse),
+        banner("OMBOR LIVE", icon=pulse),
         "",
-        f"🪪  Sessiya   <code>#{sid}</code>",
-        f"👤  Mas'ul   <b>{he(sess['masul_name'])}</b>",
-        f"🕒  Boshlash <b>{fmt_hm(sess['start_time'])}</b>",
-        f"📡  Holat    {status_chip(sess.get('status', 'active'))}",
-        "",
-    ]
-
-    lines.append(
-        f"👥  <b>{m.headcount}</b> kishi"
+        f"👥  <b>{m.headcount}</b> kishi ishlayapti"
         f"  ·  📦 <b>{m.total_trips}</b> reys"
-        f"  ·  📏 <b>{fmt_distance_m(m.total_distance)}</b>"
-    )
+        f"  ·  📏 <b>{fmt_distance_m(m.total_distance)}</b>",
+    ]
     if m.open_trips:
         lines.append(f"<i>🔄 Ochiq reys: {m.open_trips}</i>")
 
@@ -150,7 +138,8 @@ def group_live_card(*, now: datetime | None = None, phase: str = "active") -> st
         lines.extend(["", "🏆  <b>REYS TAQSIMOTI</b>", "<code>╭──────────────────────────╮</code>"])
         for i, p in enumerate(ranked, 1):
             ws = worker_stats(p["user_id"])
-            open_mark = " 🚛" if p["user_id"] in storage.active_trips else ""
+            s = storage.get_session(p["user_id"])
+            open_mark = " 🚛" if s and s.get("active_trip") else ""
             lines.append(
                 f"<code>│</code> {rank_badge(i)}  <b>{he(p['full_name'])}</b>{open_mark}\n"
                 f"<code>│</code>     📦 <b>{ws['count']}</b> reys"
@@ -158,61 +147,19 @@ def group_live_card(*, now: datetime | None = None, phase: str = "active") -> st
                 f"  ·  ⏱ {fmt_elapsed(p['join_time'], now)}"
             )
         lines.append("<code>╰──────────────────────────╯</code>")
-    elif phase == "active":
-        lines.extend(
-            [
-                "",
-                sep("·"),
-                "⚡  <b>Jamoa kutilmoqda</b>",
-                f"🔽  <b>{he(BTN_JOIN)}</b> ni bosing",
-                sep("·"),
-            ]
-        )
 
-    if phase == "active":
-        proc_pct = min(100, m.process_sec // 36)
-        lines.extend(
-            [
-                "",
-                f"⏳  <b>Jarayon</b>  {fmt_duration(m.process_sec)}",
-                f"<code>{glow_bar(proc_pct, 16)}</code>",
-            ]
-        )
-
-    footer = f"<i>🕐 {he(display_now())}</i>"
-    if phase == "active":
-        footer = f"<i>🕐 {he(display_now())}  ·  {pulse} <b>LIVE</b></i>"
-    lines.extend(["", sep(), footer])
+    proc_pct = min(100, m.process_sec // 36) if m.process_sec else 0
+    lines.extend(
+        [
+            "",
+            f"⏳  <b>Eng uzoq ish</b>  {fmt_duration(m.process_sec)}",
+            f"<code>{glow_bar(proc_pct, 16)}</code>",
+            "",
+            sep(),
+            f"<i>🕐 {he(display_now())}  ·  {pulse} <b>LIVE</b></i>",
+        ]
+    )
     return "\n".join(lines)
-
-
-def group_session_closed_card() -> str:
-    """Jarayon yakunlanganda guruh paneli."""
-    m = session_metrics()
-    sess = storage.active_session or {}
-    return (
-        f"{banner('JARAYON YAKUNLANDI', icon='✅')}\n\n"
-        f"🪪  Sessiya <code>#{sess.get('id', '—')}</code>\n"
-        f"👤  Mas'ul <b>{he(sess.get('masul_name', '—'))}</b>\n\n"
-        f"👥  {m.headcount} kishi  ·  📦 {m.total_trips} reys  ·  "
-        f"📏 {fmt_distance_m(m.total_distance)}\n\n"
-        "<i>To'liq hisobot yuqorida yuborildi.</i>"
-    )
-
-
-def private_worker_ready_card(*, name: str, bot_username: str) -> str:
-    bot = bot_username or "BOT"
-    return (
-        f"{banner('ISHLASHGA TAYYOR', icon='✅')}\n\n"
-        f"👋  <b>{he(name)}</b> — guruhda qatnashdingiz.\n\n"
-        "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        f"┃  <b>{he(BTN_TRIP)}</b>\n"
-        f"┃  <b>{he(BTN_PICK_ZONE)}</b> yoki QR\n"
-        "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "📷  QR: telefon kamerasi → bot ochiladi\n"
-        f"<code>t.me/{he(bot)}?start=zone_...</code>\n\n"
-        "<i>Statistika ish guruhidagi LIVE panelda.</i>"
-    )
 
 
 def trip_complete_card(
@@ -269,20 +216,21 @@ def photo_prompt(step: int, total: int, title: str, hint: str) -> str:
     )
 
 
-def final_report_card(*, finished_at: datetime | None = None) -> str:
+def final_report_card(
+    sess: dict[str, Any], *, finished_at: datetime | None = None
+) -> str:
     finished_at = finished_at or now_dt()
-    m = session_metrics(finished_at)
-    sess = storage.active_session or {}
+    uid = sess["user_id"]
+    m = user_session_metrics(uid, finished_at)
 
     lines = [
         f"{banner('YAKUNIY HISOBOT', icon='📊', width=28)}\n",
-        f"🪪  <code>#{sess.get('id', '—')}</code>  ·  👤  <b>{he(sess.get('masul_name', '—'))}</b>",
-        f"🗓  {he(display_now())}  ·  👷  {m.headcount} kishi\n",
-        metric_card("⏱", "Jarayon vaqti", fmt_duration(m.process_sec)),
+        f"👤  <b>{he(sess['full_name'])}</b>\n"
+        f"🪪  <code>#{sess.get('id', '—')}</code>  ·  "
+        f"🕒  {fmt_hm(sess['start_time'])}\n",
+        metric_card("⏱", "Ish vaqti", fmt_duration(m.process_sec)),
         "",
-        metric_card("🛠", "Odam-soat", fmt_duration(m.person_hours_sec)),
-        "",
-        metric_card("📦", "Jami reys", str(m.total_trips), bar_pct=min(100, m.total_trips * 4)),
+        metric_card("📦", "Reyslar", str(m.total_trips), bar_pct=min(100, m.total_trips * 8)),
         "",
         metric_card("📏", "Jami masofa", fmt_distance_m(m.total_distance)),
         "",
@@ -292,50 +240,47 @@ def final_report_card(*, finished_at: datetime | None = None) -> str:
             fmt_duration(m.avg_trip_sec) if m.total_trips else "—",
         ),
         "",
-        "🏆  <b>ISHCHILAR REYTINGI</b>",
+        "📦  <b>REYSLAR</b>",
         "<code>╭──────────────────────────╮</code>",
     ]
 
-    ranked = ranked_workers()
-    if not ranked:
-        lines.append("<code>│</code>  <i>Ishtirokchi yo'q</i>")
+    trips = sess.get("trips") or []
+    if not trips:
+        lines.append("<code>│</code>  <i>Reys yo'q</i>")
     else:
-        for i, p in enumerate(ranked, 1):
-            ws = worker_stats(p["user_id"])
-            if ws["count"]:
-                lines.append(
-                    f"<code>│</code> {rank_badge(i)}  <b>{he(p['full_name'])}</b>\n"
-                    f"<code>│</code>      📦 {ws['count']}  ·  "
-                    f"📏 {fmt_distance_m(ws['total_distance'])}  ·  "
-                    f"⌀ {fmt_duration_short(ws['avg_time'])}"
-                )
-            else:
-                lines.append(
-                    f"<code>│</code> {rank_badge(i)}  <b>{he(p['full_name'])}</b>  "
-                    f"<i>reys yo'q</i>"
-                )
+        for i, t in enumerate(trips, 1):
+            lines.append(
+                f"<code>│</code> {i}.  <b>{he(t['zone_name'])}</b>  ·  "
+                f"{fmt_duration_short(t['duration_sec'])}  ·  "
+                f"{t['distance_meter']}m"
+            )
     lines.append("<code>╰──────────────────────────╯</code>")
 
-    ph = storage.photos
+    ph = sess.get("finish_photos") or {}
     lines.extend(
         [
             "",
             sep(),
             "📸  <b>SURATLAR</b>",
-            f"    Ombor ichida  {'✅' if ph.get('ombor') else '❌'}",
-            f"    Bo'sh joy     {'✅' if ph.get('bosh_joy') else '❌'}",
-            f"    Boshlang'ich  {'✅' if ph.get('boshlangich') else '❌'}",
+            f"    Boshlash (yuk)  {'✅' if sess.get('start_photo') else '❌'}",
+            f"    Ombor           {'✅' if ph.get('ombor') else '❌'}",
+            f"    Bo'sh joy       {'✅' if ph.get('bosh_joy') else '❌'}",
             "",
-            "✨  <b>OMBOR JARAYONI MUVAFFAQIYATLI YAKUNLANDI</b>  ✨",
+            "✨  <b>ISH MUVAFFAQIYATLI YAKUNLANDI</b>  ✨",
         ]
     )
     return "\n".join(lines)
 
 
-def photo_album_caption(kind: str) -> str:
+def photo_album_caption(kind: str, *, worker_name: str = "") -> str:
     titles = {
+        "start": "Boshlash — yuk",
         "ombor": "Ombordagi yuklar",
         "bosh_joy": "Bo'shagan joy",
-        "boshlangich": "Boshlang'ich holat",
     }
-    return f"📸  <b>{he(titles.get(kind, kind))}</b>"
+    who = f" · {he(worker_name)}" if worker_name else ""
+    return f"📸  <b>{he(titles.get(kind, kind))}</b>{who}"
+
+
+def group_user_started_caption(*, name: str, session_id: int) -> str:
+    return f"🟢  <b>{he(name)}</b> ish boshladi  ·  <code>#{session_id}</code>"

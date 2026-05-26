@@ -1,4 +1,4 @@
-"""Hisob-kitob — UI uchun strukturalangan."""
+"""Hisob-kitob — har bir ishchi va guruh jami."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 import storage
-from time_util import ensure_aware, fmt_distance_m, fmt_duration, fmt_duration_short, now_dt
+from time_util import ensure_aware, fmt_duration, now_dt
 
 
 @dataclass
@@ -22,30 +22,31 @@ class SessionMetrics:
 
 
 def session_metrics(end: datetime | None = None) -> SessionMetrics:
+    """Guruh LIVE — barcha aktiv ishchilar jami."""
     end = end or now_dt()
-    sess = storage.active_session
-    proc = 0
-    if sess:
-        proc = max(0, int((end - ensure_aware(sess["start_time"])).total_seconds()))
-    ph = 0
-    for p in storage.participants.values():
-        ph += max(0, int((end - ensure_aware(p["join_time"])).total_seconds()))
-    trips = storage.trips
+    trips = storage.all_trips()
     total_dist = sum(t["distance_meter"] for t in trips)
     avg = sum(t["duration_sec"] for t in trips) // len(trips) if trips else 0
+    open_n = sum(1 for s in storage.active_users() if s.get("active_trip"))
+    ph = 0
+    proc = 0
+    for s in storage.active_users():
+        ph += max(0, int((end - ensure_aware(s["start_time"])).total_seconds()))
+        proc = max(proc, ph)
     return SessionMetrics(
         process_sec=proc,
         person_hours_sec=ph,
         total_trips=len(trips),
         total_distance=total_dist,
         avg_trip_sec=avg,
-        headcount=len(storage.participants),
-        open_trips=len(storage.active_trips),
+        headcount=len(storage.active_users()),
+        open_trips=open_n,
     )
 
 
 def worker_stats(user_id: int) -> dict[str, Any]:
-    user_trips = [t for t in storage.trips if t["user_id"] == user_id]
+    s = storage.get_session(user_id)
+    user_trips = list((s or {}).get("trips") or [])
     count = len(user_trips)
     if not count:
         return {
@@ -68,8 +69,39 @@ def worker_stats(user_id: int) -> dict[str, Any]:
 
 
 def ranked_workers() -> list[dict[str, Any]]:
-    return sorted(
-        storage.participants.values(),
-        key=lambda p: (worker_stats(p["user_id"])["count"], worker_stats(p["user_id"])["total_distance"]),
+    users = sorted(
+        storage.active_users(),
+        key=lambda s: (
+            worker_stats(s["user_id"])["count"],
+            worker_stats(s["user_id"])["total_distance"],
+        ),
         reverse=True,
+    )
+    return [
+        {
+            "user_id": s["user_id"],
+            "full_name": s["full_name"],
+            "join_time": s["start_time"],
+        }
+        for s in users
+    ]
+
+
+def user_session_metrics(user_id: int, end: datetime | None = None) -> SessionMetrics:
+    end = end or now_dt()
+    s = storage.get_session(user_id)
+    if not s:
+        return SessionMetrics(0, 0, 0, 0, 0, 0, 0)
+    trips = s.get("trips") or []
+    proc = max(0, int((end - ensure_aware(s["start_time"])).total_seconds()))
+    total_dist = sum(t["distance_meter"] for t in trips)
+    avg = sum(t["duration_sec"] for t in trips) // len(trips) if trips else 0
+    return SessionMetrics(
+        process_sec=proc,
+        person_hours_sec=proc,
+        total_trips=len(trips),
+        total_distance=total_dist,
+        avg_trip_sec=avg,
+        headcount=1,
+        open_trips=1 if s.get("active_trip") else 0,
     )
