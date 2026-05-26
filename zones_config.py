@@ -68,6 +68,9 @@ def zone_deep_link(bot_username: str, zone_code: str) -> str:
     return bot_web_deep_link(bot_username, f"zone_{zone_code}")
 
 
+TELEGRAM_ANDROID_PACKAGE = "org.telegram.messenger"
+
+
 def bot_web_deep_link(bot_username: str, start_param: str) -> str:
     user = (bot_username or "").strip().lstrip("@")
     return f"https://t.me/{user}?start={start_param}"

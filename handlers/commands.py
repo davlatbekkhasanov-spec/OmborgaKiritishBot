@@ -23,8 +23,9 @@ from services.group_check import (
 from handlers.zone_pick import send_zone_picker
 from texts import BTN_ZONES_MENU
 from zones_config import (
+    TELEGRAM_ANDROID_PACKAGE,
     ZONES,
-    bot_android_intent_deep_link,
+    bot_web_deep_link,
     zone_deep_link,
 )
 from ui import he, main_hint_card, zones_list_card
@@ -134,23 +135,25 @@ async def cmd_zones_menu(message: Message, bot: Bot) -> None:
 
 
 async def cmd_nfcprint(message: Message) -> None:
-    """NFC stikerlar — Android intent:// (brauzersiz)."""
+    """NFC — Android: URL + Application record (AAR)."""
     bot_user = app_context.bot_username
     if not bot_user:
         return await message.answer("Bot username topilmadi.", parse_mode="HTML")
 
-    reys_intent = bot_android_intent_deep_link(bot_user, "reys")
+    reys_url = bot_web_deep_link(bot_user, "reys")
+    pkg = TELEGRAM_ANDROID_PACKAGE
     lines = [
-        "📲  <b>Android NFC (brauzer ochilmasin)</b>\n",
-        "<b>1.</b> NFC Tools → <b>Erase tag</b> (eski https o'chsin)\n",
-        "<b>2.</b> Write → <b>Other</b> → <b>Custom URL / URI</b>\n",
-        "<b>3.</b> Quyidagi <b>intent://</b> qatorni to'liq nusxalang\n",
-        "<b>4.</b> «URL / Link» emas — u avtomatik https qo'shadi ❌\n",
+        "📲  <b>Android NFC — to'g'ri usul (2 ta yozuv)</b>\n",
+        "<b>1.</b> NFC Tools → <b>Erase tag</b>\n",
+        "<b>2.</b> + Создание сообщения NFC:\n",
+        f"   • <b>URL</b> → <code>{reys_url}</code>\n",
+        f"   • <b>Приложение</b> → <code>{pkg}</code>\n",
+        "<b>3.</b> Продолжить → stikerga yozing\n",
+        "<b>4.</b> Read bilan tekshiring — 2 ta record ko'rinsin\n",
         "━━━━━━━━━━━━━━━━━━━━\n",
-        f"\n<b>📦 Reys</b>\n<code>{reys_intent}</code>\n",
-        "\n<b>Zonalar:</b> /nfcprint_zonalar\n",
-        "\n<i>tg:// ba'zi telefonlarda Safari/Chrome ochadi — "
-        "stikerni qayta yozing.</i>",
+        "<b>❌ Ishlamaydi:</b> faqat tg:// yoki faqat intent://\n",
+        "<b>❌ «aka» ilovasini</b> o'chiring yoki o'chirib qo'ying\n",
+        "\n<b>Zonalar:</b> /nfcprint_zonalar",
     ]
     await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
@@ -159,10 +162,13 @@ async def cmd_nfcprint_zones(message: Message) -> None:
     bot_user = app_context.bot_username
     if not bot_user:
         return await message.answer("Bot username topilmadi.", parse_mode="HTML")
-    lines = ["📲  <b>Zona NFC (intent://)</b>\n"]
+    lines = [
+        "📲  <b>Zona NFC</b>\n",
+        "<i>Har stiker: URL + Приложение org.telegram.messenger</i>\n",
+    ]
     for code, z in ZONES.items():
-        link = bot_android_intent_deep_link(bot_user, f"zone_{code}")
-        lines.append(f"\n<b>{he(z['zone_name'])}</b>\n<code>{link}</code>")
+        link = bot_web_deep_link(bot_user, f"zone_{code}")
+        lines.append(f"\n<b>{he(z['zone_name'])}</b>\nURL: <code>{link}</code>")
     await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
 
