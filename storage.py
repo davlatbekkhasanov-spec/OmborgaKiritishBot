@@ -143,5 +143,9 @@ def parse_zone_payload(text: str | None) -> str | None:
         return None
     raw = text.strip()
     if raw.lower().startswith("zone_"):
-        return raw[5:].strip().upper()
-    return parse_zone_from_text(raw)
+        code = raw[5:].strip().upper()
+        return code if code in ZONES else None
+    code = parse_zone_from_text(raw)
+    if code and code in ZONES:
+        return code
+    return None

@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 
 from aiogram import Bot, F, Router
+from aiogram.enums import ChatType
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 import app_context
 from config import get_group_id, is_admin, settings
 import storage
-from keyboards import group_live_keyboard, private_main_keyboard
+from keyboards import group_live_keyboard, private_keyboard_for
 from services.group_check import (
     GroupConfigError,
     group_fix_message,
@@ -21,7 +22,7 @@ from services.group_check import (
     verify_group_access,
 )
 from handlers.zone_pick import send_zone_picker
-from texts import BTN_PICK_ZONE, BTN_START_MOVE, BTN_ZONES_MENU
+from texts import BTN_START_MOVE, BTN_ZONES_MENU
 from zones_config import ZONES, zone_deep_link
 from ui import group_live_card, he, welcome_card, worker_hint_card, zones_list_card
 from keyboards import zone_inline_keyboard
@@ -36,13 +37,19 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
     if zone:
         from handlers.qr import handle_zone_scan
 
-        await handle_zone_scan(message, bot, zone)
+        ok = await handle_zone_scan(message, bot, zone)
+        uid = message.from_user.id if message.from_user else 0
+        if ok and uid:
+            await message.answer(
+                "⌨️  Keyingi reyslar uchun tugmalar:",
+                reply_markup=private_keyboard_for(uid),
+            )
         return
 
     user = message.from_user
     name = user.full_name if user else "Mehmon"
     uid = user.id if user else 0
-    kb = private_main_keyboard()
+    kb = private_keyboard_for(uid)
     if is_admin(uid):
         text = welcome_card(is_masul=True, name=name)
     else:
@@ -56,6 +63,11 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
 
 
 async def cmd_zones(message: Message, bot: Bot) -> None:
+    if message.chat.type != ChatType.PRIVATE:
+        return await message.answer(
+            "📦  Zonalar uchun botga <b>shaxsiy</b> yozing va /start bosing.",
+            parse_mode="HTML",
+        )
     uid = message.from_user.id if message.from_user else 0
     if uid in storage.active_trips:
         await send_zone_picker(bot, message.chat.id, uid)
@@ -176,17 +188,12 @@ async def cmd_startmove(message: Message, bot: Bot) -> None:
         f"📣  LIVE panel <b>{where}</b> yuborildi.\n"
         f"🆔  Guruh ID: <code>{group_id}</code>",
         parse_mode="HTML",
-        reply_markup=private_main_keyboard() if not is_group_chat(message) else None,
+        reply_markup=private_keyboard_for(uid) if not is_group_chat(message) else None,
     )
 
 
 async def cmd_zones_menu(message: Message, bot: Bot) -> None:
     await cmd_zones(message, bot)
-
-
-async def cmd_pick_zone(message: Message, bot: Bot) -> None:
-    uid = message.from_user.id if message.from_user else 0
-    await send_zone_picker(bot, message.chat.id, uid)
 
 
 async def cmd_qrprint(message: Message) -> None:
@@ -225,7 +232,6 @@ router.message.register(cmd_start, Command("start"))
 router.message.register(cmd_zones, Command("zones"))
 router.message.register(cmd_guruh, Command("guruh"))
 router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
-router.message.register(cmd_pick_zone, F.text == BTN_PICK_ZONE)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_startmove, Command("startmove"))
 router.message.register(cmd_startmove, F.text == BTN_START_MOVE)

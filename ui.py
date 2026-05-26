@@ -8,7 +8,7 @@ from typing import Any
 
 import storage
 from stats import SessionMetrics, ranked_workers, session_metrics, worker_stats
-from texts import BRAND, BTN_JOIN, BTN_TRIP
+from texts import BRAND, BTN_JOIN, BTN_PICK_ZONE, BTN_TRIP
 from time_util import (
     display_now,
     ensure_aware,
@@ -81,7 +81,7 @@ def welcome_card(*, is_masul: bool, name: str) -> str:
         "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
         "┃  🚀  <b>Boshlash</b> — jarayon ochish\n"
         "┃  🏁  <b>Yakunlash</b> — hisobot + surat\n"
-        "┃  📍  <b>Zonalar</b> — QR havolalar\n"
+        "┃  📋  <b>Zonalar</b> — QR havolalar\n"
         "┃  📌  /id — Telegram ID\n"
         "┃  🔗  /guruh — guruh tekshiruv\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
@@ -96,7 +96,7 @@ def worker_hint_card(*, name: str, session_active: bool) -> str:
         live_note = (
             f"\n{sep('·')}\n"
             "🟢  <b>LIVE jarayon ochiq</b>\n"
-            "👉  Ish guruhiga o'ting va tugmalardan foydalaning\n"
+            "👉  Guruhda qatnashing, keyin shu yerda reys qiling\n"
             f"{sep('·')}\n\n"
         )
     return (
@@ -106,13 +106,13 @@ def worker_hint_card(*, name: str, session_active: bool) -> str:
         "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃  🚀  <b>Boshlash</b> — mas'ul\n"
         f"┃  🏁  <b>Yakunlash</b> — mas'ul\n"
-        f"┃  📍  <b>Zonalar</b> — QR havolalar\n"
+        f"┃  📋  <b>Zonalar</b> — /zones\n"
         "┣━━━━━━━━━━━━━━━━━━━━━━━━┫\n"
         f"┃  1️⃣  Guruhda  <b>{he(BTN_JOIN)}</b>\n"
-        f"┃  2️⃣  <b>{he(BTN_TRIP)}</b>\n"
-        "┃  3️⃣  <b>📍 Zonani tanlash</b> — 1 bosish\n"
+        f"┃  2️⃣  Shaxsiyda  <b>{he(BTN_TRIP)}</b>\n"
+        f"┃  3️⃣  QR yoki  <b>{he(BTN_PICK_ZONE)}</b>\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "<i>⏱ Live taymer  ·  📦 Reys  ·  🏆 Reyting</i>\n\n"
+        "<i>⏱ Live  ·  📦 Reys  ·  🏆 Guruhda statistika</i>\n\n"
         f"<i>🕐 {he(display_now())}</i>"
     )
 
@@ -137,40 +137,35 @@ def group_live_card(*, now: datetime | None = None, phase: str = "active") -> st
         "",
     ]
 
-    if storage.participants:
-        lines.append(f"👷  <b>JAMOA</b>   {m.headcount} kishi")
-        if m.open_trips:
-            lines.append(f"<i>🔄 Ochiq reyslar: {m.open_trips}</i>")
-        lines.append("")
-        lines.append("<code>╭──────────────────────────╮</code>")
-        for i, p in enumerate(
-            sorted(storage.participants.values(), key=lambda x: x["join_time"]), 1
-        ):
+    lines.append(
+        f"👥  <b>{m.headcount}</b> kishi"
+        f"  ·  📦 <b>{m.total_trips}</b> reys"
+        f"  ·  📏 <b>{fmt_distance_m(m.total_distance)}</b>"
+    )
+    if m.open_trips:
+        lines.append(f"<i>🔄 Ochiq reys: {m.open_trips}</i>")
+
+    ranked = ranked_workers()
+    if ranked:
+        lines.extend(["", "🏆  <b>REYS TAQSIMOTI</b>", "<code>╭──────────────────────────╮</code>"])
+        for i, p in enumerate(ranked, 1):
             ws = worker_stats(p["user_id"])
-            trip_txt = f"  ·  📦 {ws['count']}" if ws["count"] else ""
-            open_mark = "  🚛" if p["user_id"] in storage.active_trips else ""
+            open_mark = " 🚛" if p["user_id"] in storage.active_trips else ""
             lines.append(
                 f"<code>│</code> {rank_badge(i)}  <b>{he(p['full_name'])}</b>{open_mark}\n"
-                f"<code>│</code>     ⏱  <b>{fmt_elapsed(p['join_time'], now)}</b>{trip_txt}"
+                f"<code>│</code>     📦 <b>{ws['count']}</b> reys"
+                f"  ·  📏 {fmt_distance_m(ws['total_distance'])}"
+                f"  ·  ⏱ {fmt_elapsed(p['join_time'], now)}"
             )
         lines.append("<code>╰──────────────────────────╯</code>")
-    else:
-        lines.extend(
-            [
-                sep("·"),
-                "⚡  <b>Hozircha jamoa yo'q</b>",
-                f"🔽  <b>{he(BTN_JOIN)}</b> ni bosing",
-                sep("·"),
-            ]
-        )
-
-    if phase == "active" and m.total_trips:
-        trip_pct = min(100, m.total_trips * 5)
+    elif phase == "active":
         lines.extend(
             [
                 "",
-                f"📦  Reyslar  <b>{m.total_trips}</b>  ·  📏  <b>{fmt_distance_m(m.total_distance)}</b>",
-                f"<code>{glow_bar(trip_pct, 16)}</code>",
+                sep("·"),
+                "⚡  <b>Jamoa kutilmoqda</b>",
+                f"🔽  <b>{he(BTN_JOIN)}</b> ni bosing",
+                sep("·"),
             ]
         )
 
@@ -191,12 +186,32 @@ def group_live_card(*, now: datetime | None = None, phase: str = "active") -> st
     return "\n".join(lines)
 
 
-def trip_started_card(*, bot_username: str) -> str:
+def group_session_closed_card() -> str:
+    """Jarayon yakunlanganda guruh paneli."""
+    m = session_metrics()
+    sess = storage.active_session or {}
     return (
-        f"{banner('REYS BOSHLANDI', icon='🚛')}\n\n"
-        "📷  Zonadagi <b>QR stiker</b> ni skaner qiling.\n"
-        "Yoki <b>📍 Zonani tanlash</b> (zaxira).\n\n"
-        "<i>Ekvivalent masofa hisobda ishlatiladi.</i>"
+        f"{banner('JARAYON YAKUNLANDI', icon='✅')}\n\n"
+        f"🪪  Sessiya <code>#{sess.get('id', '—')}</code>\n"
+        f"👤  Mas'ul <b>{he(sess.get('masul_name', '—'))}</b>\n\n"
+        f"👥  {m.headcount} kishi  ·  📦 {m.total_trips} reys  ·  "
+        f"📏 {fmt_distance_m(m.total_distance)}\n\n"
+        "<i>To'liq hisobot yuqorida yuborildi.</i>"
+    )
+
+
+def private_worker_ready_card(*, name: str, bot_username: str) -> str:
+    bot = bot_username or "BOT"
+    return (
+        f"{banner('ISHLASHGA TAYYOR', icon='✅')}\n\n"
+        f"👋  <b>{he(name)}</b> — guruhda qatnashdingiz.\n\n"
+        "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┃  <b>{he(BTN_TRIP)}</b>\n"
+        f"┃  <b>{he(BTN_PICK_ZONE)}</b> yoki QR\n"
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        "📷  QR: telefon kamerasi → bot ochiladi\n"
+        f"<code>t.me/{he(bot)}?start=zone_...</code>\n\n"
+        "<i>Statistika ish guruhidagi LIVE panelda.</i>"
     )
 
 
@@ -217,7 +232,7 @@ def trip_complete_card(
     return (
         f"{banner('REYS YAKUN', icon='✅')}\n\n"
         f"👤  <b>{he(worker_name)}</b>\n"
-        f"📍  <b>{he(zone_name)}</b>\n"
+        f"📦  <b>{he(zone_name)}</b>\n"
         f"{dist_line}\n"
         f"⏱  <b>{fmt_duration_short(duration_sec)}</b>\n\n"
         f"<code>{glow_bar(min(100, duration_sec), 12)}</code>"
@@ -225,7 +240,7 @@ def trip_complete_card(
 
 
 def zones_list_card(*, bot_username: str) -> str:
-    lines = [banner("QR ZONALAR", icon="📍"), ""]
+    lines = [banner("QR ZONALAR", icon="📦"), ""]
     for code, z in storage.ZONES.items():
         link = (
             f"https://t.me/{bot_username}?start=zone_{code}"

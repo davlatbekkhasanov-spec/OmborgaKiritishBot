@@ -2,34 +2,55 @@
 
 from __future__ import annotations
 
+import logging
+
 from aiogram import Bot, F, Router
+from aiogram.enums import ChatType
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import Message
 
 import app_context
-from config import get_group_id, settings
 import storage
-from keyboards import CB_FINISH
 from states import FinishStates
 from texts import BTN_FINISH
-from ui import final_report_card, photo_album_caption, photo_prompt
+from ui import final_report_card, group_session_closed_card, photo_album_caption, photo_prompt
 
 router = Router(name="finish")
+log = logging.getLogger(__name__)
+
+
+async def _close_group_live_panel(bot: Bot) -> None:
+    sess = storage.active_session
+    if not sess:
+        return
+    chat_id = sess.get("group_chat_id")
+    msg_id = sess.get("group_message_id")
+    if not chat_id or not msg_id:
+        return
+    try:
+        await bot.edit_message_text(
+            group_session_closed_card(),
+            chat_id=chat_id,
+            message_id=msg_id,
+            parse_mode="HTML",
+            reply_markup=None,
+        )
+    except Exception as e:
+        log.warning("Guruh panelini yopish: %s", e)
 
 
 async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
-    """
-  Yakunlashni boshlaydi.
-  Muvaffaqiyat: None qaytaradi.
-  Xato: foydalanuvchiga matn.
-    """
     if not storage.has_active_session():
         return "⚠️  Aktiv jarayon yo'q. Avval <b>Boshlash</b> bosing."
     if not storage.can_manage(user_id):
         return "⛔  <b>Yakunlash</b> faqat mas'ul/admin uchun."
     if storage.active_trips:
-        return "⚠️  Ochiq reyslar bor — avval QR skaner qiling."
+        n = len(storage.active_trips)
+        return (
+            f"⚠️  <b>{n}</b> ta ochiq reys bor — avval yakunlang "
+            "(QR yoki Zonani tanlash)."
+        )
 
     storage.active_session["status"] = "finishing"
     if app_context.ticker:
@@ -55,19 +76,7 @@ async def begin_finish(user_id: int, bot: Bot, state: FSMContext) -> str | None:
     return None
 
 
-@router.callback_query(F.data == CB_FINISH)
-async def finish_from_group(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
-    user = callback.from_user
-    if not user:
-        return
-    err = await begin_finish(user.id, bot, state)
-    if err:
-        await callback.answer(err.replace("<b>", "").replace("</b>", ""), show_alert=True)
-        return
-    await callback.answer()
-
-
-@router.message(F.text == BTN_FINISH)
+@router.message(F.text == BTN_FINISH, F.chat.type == ChatType.PRIVATE)
 async def finish_from_private(message: Message, state: FSMContext, bot: Bot) -> None:
     uid = message.from_user.id if message.from_user else 0
     err = await begin_finish(uid, bot, state)
@@ -96,11 +105,12 @@ async def finish_bosh_joy(message: Message, state: FSMContext, bot: Bot) -> None
     await state.clear()
 
     report = final_report_card()
-    group_id = get_group_id() or settings()["group_id"]
+    sess = storage.active_session
+    group_id = (sess or {}).get("group_chat_id")
 
     if group_id:
         await bot.send_message(group_id, report, parse_mode="HTML")
-        for key in ("ombor", "bosh_joy", "boshlangich"):
+        for key in ("ombor", "bosh_joy"):
             fid = storage.photos.get(key)
             if fid:
                 await bot.send_photo(
@@ -110,6 +120,7 @@ async def finish_bosh_joy(message: Message, state: FSMContext, bot: Bot) -> None
                     parse_mode="HTML",
                 )
 
+    await _close_group_live_panel(bot)
     await message.answer(report, parse_mode="HTML")
     storage.reset_session()
 

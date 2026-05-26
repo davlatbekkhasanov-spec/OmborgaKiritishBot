@@ -2,9 +2,14 @@
 
 BRAND = "GLOBUS · OMBOR LIVE"
 
-BTN_JOIN = "✅  Qatnashish"
+# Guruh (faqat bitta)
+BTN_JOIN = "✅  Men qatnashaman"
+
+# Shaxsiy chat — ishchi
 BTN_TRIP = "📦  Reys oldim"
+BTN_PICK_ZONE = "📦  Zonani tanlash"
+
+# Shaxsiy chat — mas'ul
 BTN_FINISH = "🏁  Yakunlash"
-BTN_ZONES_MENU = "📍  Zonalar"
 BTN_START_MOVE = "🚀  Boshlash"
-BTN_PICK_ZONE = "📍  Zonani tanlash"
+BTN_ZONES_MENU = "📋  Zonalar ro'yxati"
