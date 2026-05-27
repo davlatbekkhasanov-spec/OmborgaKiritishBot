@@ -27,7 +27,7 @@ async def complete_zone_for_user(
     if not storage.has_user_session(user_id):
         await bot.send_message(
             chat_id,
-            f"⚠️  Avval <b>{he(BTN_START_MOVE)}</b> — yuk rasmini yuboring.",
+            f"⚠️  Avval <b>{he(BTN_START_MOVE)}</b> bosing.",
             parse_mode="HTML",
         )
         return False

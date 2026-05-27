@@ -80,24 +80,13 @@ def main_hint_card(*, name: str, user_id: int) -> str:
         f"<i>Har bir ishchi mustaqil ishlaydi</i>\n"
         f"{live_note}"
         "┏━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
-        f"┃  1️⃣  <b>{he(BTN_START_MOVE)}</b>\n"
-        f"┃      Yukingiz <b>1 ta rasm</b> — shu bilan boshlanadi\n"
+        f"┃  1️⃣  <b>{he(BTN_START_MOVE)}</b> — ishni boshlash\n"
         f"┃  2️⃣  <b>{he(BTN_TRIP)}</b> → yuk bilan manzil (QR/zona)\n"
         f"┃  3️⃣  Keyingi reysgacha — <b>dam</b> va <b>yuksiz</b> avto\n"
         f"┃  4️⃣  <b>🏁 Yakunlash</b>\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
         "<i>📣 Guruhda hammangiz statistikasi ko'rinadi</i>\n\n"
         f"<i>🕐 {he(display_now())}</i>"
-    )
-
-
-def start_photo_prompt() -> str:
-    return (
-        f"{banner('BOSHLASH', icon='📸')}\n\n"
-        "O'zingiz olib ketadigan <b>yuklarning</b> bitta aniq "
-        "fotosuratini yuboring.\n\n"
-        "<i>Boshqa ishchi ham xohlasa — o'z rasmi bilan "
-        "alohida boshlaydi.</i>"
     )
 
 
@@ -117,8 +106,7 @@ def group_live_card(*, now: datetime | None = None, empty: bool = False) -> str:
         return (
             f"{banner('OMBOR LIVE', icon='📊')}\n\n"
             "<i>Hozircha aktiv ishchi yo'q</i>\n\n"
-            f"📸  Shaxsiy chatda <b>{he(BTN_START_MOVE)}</b> — "
-            "yuk rasmi bilan\n\n"
+            f"▶️  Shaxsiy chatda <b>{he(BTN_START_MOVE)}</b>\n\n"
             f"<i>🕐 {he(display_now())}</i>"
         )
 
@@ -208,17 +196,6 @@ def zones_list_card(*, bot_username: str) -> str:
     return "\n".join(lines)
 
 
-def photo_prompt(step: int, total: int, title: str, hint: str) -> str:
-    pct = int(round(100 * step / max(total, 1)))
-    return (
-        f"📸  <b>SURAT {step}/{total}</b>\n"
-        f"<code>{glow_bar(pct, 12)}</code>  <b>{step}/{total}</b>\n\n"
-        f"<b>{he(title)}</b>\n"
-        f"<i>{he(hint)}</i>\n\n"
-        "⬇️  <b>Fotoni yuboring</b>"
-    )
-
-
 def final_report_card(
     sess: dict[str, Any], *, finished_at: datetime | None = None
 ) -> str:
@@ -279,28 +256,15 @@ def final_report_card(
             )
         lines.append("<code>╰──────────────────────────╯</code>")
 
-    ph = sess.get("finish_photos") or {}
     lines.extend(
         [
             "",
             sep(),
-            "📸  <b>SURATLAR</b>",
-            f"    Boshlash (yuk)  {'✅' if sess.get('start_photo') else '❌'}",
-            f"    Bo'sh joy       {'✅' if ph.get('bosh_joy') else '❌'}",
             "",
             "✨  <b>ISH MUVAFFAQIYATLI YAKUNLANDI</b>  ✨",
         ]
     )
     return "\n".join(lines)
-
-
-def photo_album_caption(kind: str, *, worker_name: str = "") -> str:
-    titles = {
-        "start": "Boshlash — yuk",
-        "bosh_joy": "Bo'shagan joy",
-    }
-    who = f" · {he(worker_name)}" if worker_name else ""
-    return f"📸  <b>{he(titles.get(kind, kind))}</b>{who}"
 
 
 def group_user_started_caption(*, name: str, session_id: int) -> str:

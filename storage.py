@@ -14,19 +14,15 @@ _trip_id = 0
 _session_id = 0
 
 
-def _new_session_dict(
-    user_id: int, full_name: str, start_photo: str
-) -> dict[str, Any]:
+def _new_session_dict(user_id: int, full_name: str) -> dict[str, Any]:
     return {
         "id": next_session_id(),
         "user_id": user_id,
         "full_name": full_name,
         "start_time": now_dt(),
         "status": "active",
-        "start_photo": start_photo,
         "trips": [],
         "active_trip": None,
-        "finish_photos": {},
         "breaks": [],
         "empty_distance_meter": 0,
         "empty_segments": [],
@@ -61,11 +57,6 @@ def get_session(user_id: int) -> dict[str, Any] | None:
 def has_user_session(user_id: int) -> bool:
     s = get_session(user_id)
     return s is not None and s.get("status") == "active"
-
-
-def is_finishing(user_id: int) -> bool:
-    s = get_session(user_id)
-    return s is not None and s.get("status") == "finishing"
 
 
 def any_active_users() -> bool:
@@ -155,13 +146,11 @@ def _apply_interval_since_last_trip(s: dict[str, Any], now) -> str:
 def try_begin_start(user_id: int) -> tuple[bool, str]:
     if has_user_session(user_id):
         return False, "Sizda allaqachon aktiv jarayon bor. Avval Yakunlash."
-    if is_finishing(user_id):
-        return False, "Yakunlash jarayonida. Suratlarni yuboring yoki /cancel"
     return True, ""
 
 
-def activate_session(user_id: int, full_name: str, start_photo: str) -> dict[str, Any]:
-    sess = _new_session_dict(user_id, full_name, start_photo)
+def activate_session(user_id: int, full_name: str) -> dict[str, Any]:
+    sess = _new_session_dict(user_id, full_name)
     user_sessions[user_id] = sess
     return sess
 
@@ -169,7 +158,7 @@ def activate_session(user_id: int, full_name: str, start_photo: str) -> dict[str
 def try_start_trip(user_id: int) -> tuple[bool, str]:
     s = get_session(user_id)
     if not s or s.get("status") != "active":
-        return False, "Avval 📸 Boshlash — yukingiz rasmini yuboring."
+        return False, "Avval ▶️ Boshlash bosing."
     if s.get("active_trip"):
         return False, "Ochiq reys bor. Avval zonani yoping (QR yoki tanlash)."
 
@@ -191,7 +180,7 @@ def try_start_trip(user_id: int) -> tuple[bool, str]:
 def try_complete_trip(user_id: int, zone_code: str) -> tuple[bool, str | dict[str, Any]]:
     s = get_session(user_id)
     if not s or s.get("status") != "active":
-        return False, "Avval 📸 Boshlash bilan ishni boshlang."
+        return False, "Avval ▶️ Boshlash bilan ishni boshlang."
     zone = ZONES.get(zone_code.upper())
     if not zone:
         return False, f"Noma'lum zona: {zone_code}"
@@ -230,22 +219,16 @@ def finalize_pending_interval(user_id: int) -> None:
     _apply_interval_since_last_trip(s, now_dt())
 
 
-def begin_user_finish(user_id: int) -> tuple[bool, str]:
+def finish_user_session(
+    user_id: int,
+) -> tuple[bool, str, dict[str, Any] | None]:
     s = get_session(user_id)
     if not s or s.get("status") != "active":
-        return False, "Aktiv jarayon yo'q."
+        return False, "Aktiv jarayon yo'q.", None
     if s.get("active_trip"):
-        return False, "Ochiq reys bor — avval zonani yoping."
+        return False, "Ochiq reys bor — avval zonani yoping.", None
     finalize_pending_interval(user_id)
-    s["status"] = "finishing"
-    s["finish_photos"] = {}
-    return True, ""
-
-
-def cancel_user_finish(user_id: int) -> None:
-    s = get_session(user_id)
-    if s and s.get("status") == "finishing":
-        s["status"] = "active"
+    return True, "", end_user_session(user_id)
 
 
 def end_user_session(user_id: int) -> dict[str, Any] | None:

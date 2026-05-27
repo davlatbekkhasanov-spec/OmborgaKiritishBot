@@ -36,10 +36,6 @@ def zone_inline_keyboard() -> InlineKeyboardMarkup:
 
 
 def private_keyboard_for(user_id: int) -> ReplyKeyboardMarkup:
-    s = storage.get_session(user_id)
-    if s and s.get("status") == "finishing":
-        return ReplyKeyboardMarkup(keyboard=[], resize_keyboard=True)
-
     if storage.has_user_session(user_id):
         return ReplyKeyboardMarkup(
             keyboard=[

@@ -8,6 +8,7 @@ import app_context
 import storage
 from keyboards import zone_inline_keyboard
 from services.group_panel import notify_session_change
+from texts import BTN_START_MOVE
 from ui import banner, he
 
 
@@ -40,7 +41,7 @@ async def send_zone_picker(bot: Bot, chat_id: int, user_id: int) -> None:
     if not storage.has_user_session(user_id):
         await bot.send_message(
             chat_id,
-            "⚠️  Avval <b>📸 Boshlash</b> — yuk rasmini yuboring.",
+            f"⚠️  Avval <b>{he(BTN_START_MOVE)}</b> bosing.",
             parse_mode="HTML",
         )
         return
