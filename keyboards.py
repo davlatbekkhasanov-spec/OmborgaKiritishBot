@@ -3,8 +3,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 
 import storage
-from config import is_admin
-from hub_test import BTN_HUB_TEST
 from texts import BTN_FINISH, BTN_PICK_ZONE, BTN_START_MOVE, BTN_TRIP
 from zones_config import zone_leg_meter
 
@@ -38,23 +36,18 @@ def zone_inline_keyboard() -> InlineKeyboardMarkup:
 
 
 def private_keyboard_for(user_id: int) -> ReplyKeyboardMarkup:
-    admin_row = [[KeyboardButton(text=BTN_HUB_TEST)]] if is_admin(user_id) else []
     if storage.has_user_session(user_id):
-        keyboard = [
-            [KeyboardButton(text=BTN_TRIP), KeyboardButton(text=BTN_FINISH)],
-            [KeyboardButton(text=BTN_PICK_ZONE)],
-        ]
-        keyboard.extend(admin_row)
         return ReplyKeyboardMarkup(
-            keyboard=keyboard,
+            keyboard=[
+                [KeyboardButton(text=BTN_TRIP), KeyboardButton(text=BTN_FINISH)],
+                [KeyboardButton(text=BTN_PICK_ZONE)],
+            ],
             resize_keyboard=True,
             is_persistent=True,
         )
 
-    keyboard = [[KeyboardButton(text=BTN_START_MOVE)]]
-    keyboard.extend(admin_row)
     return ReplyKeyboardMarkup(
-        keyboard=keyboard,
+        keyboard=[[KeyboardButton(text=BTN_START_MOVE)]],
         resize_keyboard=True,
         is_persistent=True,
     )
