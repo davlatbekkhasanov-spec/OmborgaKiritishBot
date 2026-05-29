@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 import storage
-from stats import ranked_workers, session_metrics, user_session_metrics, worker_stats
+from stats import metrics_from_session, ranked_workers, session_metrics, worker_stats
 from texts import BRAND, BTN_PICK_ZONE, BTN_START_MOVE, BTN_TRIP
 from time_util import (
     display_now,
@@ -200,8 +200,7 @@ def final_report_card(
     sess: dict[str, Any], *, finished_at: datetime | None = None
 ) -> str:
     finished_at = finished_at or now_dt()
-    uid = sess["user_id"]
-    m = user_session_metrics(uid, finished_at)
+    m = metrics_from_session(sess, finished_at)
 
     lines = [
         f"{banner('YAKUNIY HISOBOT', icon='📊', width=28)}\n",

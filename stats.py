@@ -87,15 +87,16 @@ def ranked_workers() -> list[dict[str, Any]]:
     ]
 
 
-def user_session_metrics(user_id: int, end: datetime | None = None) -> SessionMetrics:
+def metrics_from_session(sess: dict[str, Any], end: datetime | None = None) -> SessionMetrics:
+    """Yakunlashdan keyin sessiya RAM dan olib tashlangan — faqat sess dict ishlatiladi."""
     end = end or now_dt()
-    s = storage.get_session(user_id)
-    if not s:
+    if not sess:
         return SessionMetrics(0, 0, 0, 0, 0, 0, 0)
-    trips = s.get("trips") or []
-    proc = max(0, int((end - ensure_aware(s["start_time"])).total_seconds()))
-    total_dist = sum(t["distance_meter"] for t in trips)
-    avg = sum(t["duration_sec"] for t in trips) // len(trips) if trips else 0
+    trips = sess.get("trips") or []
+    start = ensure_aware(sess.get("start_time"))
+    proc = max(0, int((end - start).total_seconds())) if start else 0
+    total_dist = sum(int(t.get("distance_meter", 0) or 0) for t in trips)
+    avg = sum(int(t.get("duration_sec", 0) or 0) for t in trips) // len(trips) if trips else 0
     return SessionMetrics(
         process_sec=proc,
         person_hours_sec=proc,
@@ -103,5 +104,13 @@ def user_session_metrics(user_id: int, end: datetime | None = None) -> SessionMe
         total_distance=total_dist,
         avg_trip_sec=avg,
         headcount=1,
-        open_trips=1 if s.get("active_trip") else 0,
+        open_trips=1 if sess.get("active_trip") else 0,
     )
+
+
+def user_session_metrics(user_id: int, end: datetime | None = None) -> SessionMetrics:
+    end = end or now_dt()
+    s = storage.get_session(user_id)
+    if not s:
+        return SessionMetrics(0, 0, 0, 0, 0, 0, 0)
+    return metrics_from_session(s, end)
