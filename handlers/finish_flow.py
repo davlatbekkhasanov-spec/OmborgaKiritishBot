@@ -16,7 +16,9 @@ from keyboards import private_keyboard_for
 from services.group_panel import notify_session_change
 from services.group_resolve import resolve_group_chat_id
 from texts import BTN_FINISH
+from integrations_compact import compact_session_summary
 from ui import final_report_card, he
+from yordamchi_push import push_to_yordamchi_hub_background
 
 router = Router(name="finish")
 log = logging.getLogger(__name__)
@@ -57,6 +59,11 @@ async def finish_from_private(message: Message, bot: Bot) -> None:
         return await message.answer(f"⚠️  {he(err)}", parse_mode="HTML")
 
     report = final_report_card(sess)
+    push_to_yordamchi_hub_background(
+        tg_id=uid,
+        bot_key="omborga",
+        summary=compact_session_summary(sess),
+    )
     group_ok = await _send_group_finish_report(bot, sess, report)
     await notify_session_change(bot)
 
