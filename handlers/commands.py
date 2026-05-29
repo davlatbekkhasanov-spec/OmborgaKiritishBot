@@ -10,7 +10,8 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 import app_context
-from config import get_group_id, settings
+from config import get_group_id, is_admin, settings
+from hub_test import BTN_HUB_TEST
 import storage
 from keyboards import private_keyboard_for, zone_inline_keyboard
 from services.group_check import (
@@ -68,8 +69,11 @@ async def cmd_start(message: Message, command: CommandObject, bot: Bot) -> None:
     user = message.from_user
     name = user.full_name if user else "Mehmon"
     uid = user.id if user else 0
+    hint = main_hint_card(name=name, user_id=uid)
+    if is_admin(uid):
+        hint += f"\n\n<i>Admin: {BTN_HUB_TEST} yoki /test_hub</i>"
     await message.answer(
-        main_hint_card(name=name, user_id=uid),
+        hint,
         parse_mode="HTML",
         reply_markup=private_keyboard_for(uid),
     )

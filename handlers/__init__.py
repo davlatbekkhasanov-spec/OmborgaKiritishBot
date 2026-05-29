@@ -4,6 +4,7 @@ from handlers import (
     callbacks,
     commands,
     finish_flow,
+    hub_test,
     private_worker,
     qr,
     start_flow,
@@ -18,4 +19,5 @@ def setup_routers() -> Router:
     root.include_router(finish_flow.router)
     root.include_router(callbacks.router)
     root.include_router(commands.router)
+    root.include_router(hub_test.router)
     return root
