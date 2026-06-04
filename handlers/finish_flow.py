@@ -18,7 +18,8 @@ from services.group_resolve import resolve_group_chat_id
 from texts import BTN_FINISH
 from integrations_compact import compact_session_summary
 from ui import final_report_card, he
-from yordamchi_push import push_to_yordamchi_hub_background
+from hub_day_log import save_today_push
+from yordamchi_push import push_to_yordamchi_hub, push_to_yordamchi_hub_background, today_iso
 
 router = Router(name="finish")
 log = logging.getLogger(__name__)
@@ -59,11 +60,23 @@ async def finish_from_private(message: Message, bot: Bot) -> None:
         return await message.answer(f"⚠️  {he(err)}", parse_mode="HTML")
 
     report = final_report_card(sess)
-    push_to_yordamchi_hub_background(
+    hub_summary = compact_session_summary(sess)
+    day = today_iso()
+    save_today_push(day=day, tg_id=uid, summary=hub_summary)
+    ok, via = await push_to_yordamchi_hub(
         tg_id=uid,
         bot_key="omborga",
-        summary=compact_session_summary(sess),
+        summary=hub_summary,
+        day_iso=day,
     )
+    if not ok:
+        log.warning("omborga hub push failed uid=%s via=%s", uid, via)
+        push_to_yordamchi_hub_background(
+            tg_id=uid,
+            bot_key="omborga",
+            summary=hub_summary,
+            day_iso=day,
+        )
     group_ok = await _send_group_finish_report(bot, sess, report)
     await notify_session_change(bot)
 

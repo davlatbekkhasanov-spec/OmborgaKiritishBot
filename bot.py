@@ -19,7 +19,9 @@ import app_context
 from config import settings, startup_warnings
 from handlers import setup_routers
 from services.group_check import GroupConfigError, verify_group_access
+from hub_day_log import list_today_pushes
 from services.live_ticker import LiveTicker
+from yordamchi_push import push_to_yordamchi_hub, today_iso
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,6 +63,24 @@ async def main() -> None:
         app_context.bot_username,
         cfg["group_id"],
     )
+
+    try:
+        day = today_iso()
+        rows = list_today_pushes(day)
+        sent = 0
+        for tg_id, summary in rows:
+            ok, _via = await push_to_yordamchi_hub(
+                tg_id=tg_id,
+                bot_key="omborga",
+                summary=summary,
+                day_iso=day,
+            )
+            if ok:
+                sent += 1
+        if rows:
+            log.info("Omborga hub backfill: %s/%s for %s", sent, len(rows), day)
+    except Exception:
+        log.exception("omborga hub backfill xato")
 
     try:
         await dp.start_polling(bot)
