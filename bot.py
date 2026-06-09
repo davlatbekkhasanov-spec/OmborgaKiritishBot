@@ -19,7 +19,8 @@ import app_context
 from config import settings, startup_warnings
 from handlers import setup_routers
 from services.group_check import GroupConfigError, verify_group_access
-from hub_day_log import list_today_pushes
+from hub_day_log import HUB_DB_PATH, list_today_pushes
+from persist_data import persistence_status_line
 from services.live_ticker import LiveTicker
 from yordamchi_push import push_to_yordamchi_hub, today_iso
 
@@ -38,6 +39,8 @@ async def main() -> None:
 
     for w in startup_warnings():
         log.warning(w)
+
+    log.info(persistence_status_line(HUB_DB_PATH))
 
     bot = Bot(
         token=cfg["token"],

@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
-from pathlib import Path
 
-_DB = os.getenv("HUB_DAY_LOG_PATH", "/data/omborga_hub_day.db").strip() or "omborga_hub_day.db"
+from persist_data import bootstrap_persistence, resolve_db_path
+
+_DB_BOOT = bootstrap_persistence(
+    resolve_db_path(env_key="HUB_DAY_LOG_PATH", default_filename="omborga_hub_day.db"),
+    legacy_names=("omborga_hub_day.db",),
+)
+_DB = _DB_BOOT["db_path"]
+HUB_DB_PATH = _DB
 
 
 def _conn() -> sqlite3.Connection:
-    path = Path(_DB)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(str(path), timeout=15)
+    c = sqlite3.connect(_DB, timeout=15)
     c.row_factory = sqlite3.Row
     c.execute(
         """
