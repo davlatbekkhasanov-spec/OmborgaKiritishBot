@@ -13,11 +13,10 @@ from aiogram.types import Message
 
 import storage
 from keyboards import private_keyboard_for
-from services.group_panel import notify_session_change
 from services.group_resolve import resolve_group_chat_id
 from texts import BTN_FINISH
 from integrations_compact import compact_session_summary
-from ui import final_report_card, he
+from ui import final_report_card, group_carrying_stopped, he
 from hub_day_log import save_today_push
 from yordamchi_push import push_to_yordamchi_hub, push_to_yordamchi_hub_background, today_iso
 
@@ -39,17 +38,13 @@ async def _send_html(bot: Bot, chat_id: int, text: str) -> bool:
             return False
 
 
-async def _send_group_finish_report(bot: Bot, sess: dict[str, Any], report: str) -> bool:
-    group_id = await resolve_group_chat_id(
-        bot, prefer=sess.get("group_chat_id")
-    )
+async def _send_group_carrying_stopped(bot: Bot, sess: dict[str, Any]) -> bool:
+    group_id = await resolve_group_chat_id(bot, prefer=sess.get("group_chat_id"))
     if not group_id:
-        log.error("Guruh ID yo'q — hisobot guruhga ketmadi")
+        log.error("Guruh ID yo'q — tugatish xabari ketmadi")
         return False
-
     name = sess.get("full_name") or "Noma'lum"
-    header = f"🏁  <b>{he(name)}</b> ishini yakunladi\n\n"
-    return await _send_html(bot, group_id, header + report)
+    return await _send_html(bot, group_id, group_carrying_stopped(name=name))
 
 
 @router.message(F.text == BTN_FINISH, F.chat.type == ChatType.PRIVATE)
@@ -77,8 +72,7 @@ async def finish_from_private(message: Message, bot: Bot) -> None:
             summary=hub_summary,
             day_iso=day,
         )
-    group_ok = await _send_group_finish_report(bot, sess, report)
-    await notify_session_change(bot)
+    group_ok = await _send_group_carrying_stopped(bot, sess)
 
     extra = ""
     if not group_ok:

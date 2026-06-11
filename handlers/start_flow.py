@@ -11,10 +11,9 @@ from aiogram.types import Message
 
 import storage
 from keyboards import private_keyboard_for
-from services.group_panel import ensure_group_panel, notify_session_change
 from services.group_resolve import resolve_group_chat_id
 from texts import BTN_START_MOVE
-from ui import group_user_started_caption, he, session_started_card
+from ui import group_carrying_started, he, session_started_card
 
 router = Router(name="start_flow")
 log = logging.getLogger(__name__)
@@ -31,16 +30,13 @@ async def _activate_and_notify(
         try:
             await bot.send_message(
                 group_id,
-                group_user_started_caption(name=name, session_id=sess["id"]),
+                group_carrying_started(name=name),
                 parse_mode="HTML",
             )
         except Exception as e:
             log.warning("Guruhga boshlash xabari: %s", e)
     else:
         log.warning("Guruh ID topilmadi — boshlash faqat shaxsiy chatda")
-
-    await ensure_group_panel(bot)
-    await notify_session_change(bot)
 
     await bot.send_message(
         reply_chat_id,

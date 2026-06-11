@@ -85,7 +85,7 @@ def main_hint_card(*, name: str, user_id: int) -> str:
         f"┃  3️⃣  Keyingi reysgacha — <b>dam</b> va <b>yuksiz</b> avto\n"
         f"┃  4️⃣  <b>🏁 Yakunlash</b>\n"
         "┗━━━━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        "<i>📣 Guruhda hammangiz statistikasi ko'rinadi</i>\n\n"
+        "<i>📊 Batafsil statistika — admin LIVE panelda</i>\n\n"
         f"<i>🕐 {he(display_now())}</i>"
     )
 
@@ -266,5 +266,9 @@ def final_report_card(
     return "\n".join(lines)
 
 
-def group_user_started_caption(*, name: str, session_id: int) -> str:
-    return f"🟢  <b>{he(name)}</b> ish boshladi  ·  <code>#{session_id}</code>"
+def group_carrying_started(*, name: str) -> str:
+    return f"🚛  <b>{he(name)}</b> юк ташияпти"
+
+
+def group_carrying_stopped(*, name: str) -> str:
+    return f"🏁  <b>{he(name)}</b> юк ташишни тухтатди"

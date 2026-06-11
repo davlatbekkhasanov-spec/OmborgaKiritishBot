@@ -21,7 +21,7 @@ from handlers import setup_routers
 from services.group_check import GroupConfigError, verify_group_access
 from hub_day_log import HUB_DB_PATH, list_today_pushes
 from persist_data import persistence_status_line
-from services.live_ticker import LiveTicker
+from live_web import start_live_server
 from yordamchi_push import push_to_yordamchi_hub, today_iso
 
 logging.basicConfig(
@@ -56,7 +56,8 @@ async def main() -> None:
 
     me = await bot.get_me()
     app_context.bot_username = (me.username or "").strip()
-    app_context.ticker = LiveTicker(bot)
+
+    http_runner = await start_live_server()
 
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(setup_routers())
@@ -88,8 +89,8 @@ async def main() -> None:
     try:
         await dp.start_polling(bot)
     finally:
-        if app_context.ticker:
-            app_context.ticker.stop()
+        if http_runner:
+            await http_runner.cleanup()
         await bot.session.close()
 
 

@@ -58,12 +58,6 @@ async def refresh_group_panel(bot: Bot) -> None:
 
 
 async def notify_session_change(bot: Bot) -> None:
-    if storage.any_active_users():
-        await ensure_group_panel(bot)
-        if app_context.ticker and not app_context.ticker.is_running():
-            await app_context.ticker.start()
-        await refresh_group_panel(bot)
-    else:
-        if app_context.ticker:
-            app_context.ticker.stop()
-        await refresh_group_panel(bot)
+    """Guruh paneli o'chirilgan — LIVE ma'lumot /live dashboardda."""
+    if app_context.ticker:
+        app_context.ticker.stop()

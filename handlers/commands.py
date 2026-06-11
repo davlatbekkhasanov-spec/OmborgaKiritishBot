@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatType
@@ -10,7 +11,8 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 import app_context
-from config import get_group_id, settings
+from config import get_group_id, is_admin, public_base_url, settings
+from live_api import live_dash_token
 import storage
 from keyboards import private_keyboard_for, zone_inline_keyboard
 from services.group_check import (
@@ -172,6 +174,27 @@ async def cmd_nfcprint_zones(message: Message) -> None:
     await message.answer("\n".join(lines), parse_mode="HTML", disable_web_page_preview=True)
 
 
+async def cmd_live(message: Message) -> None:
+    """Admin — onlayn kuzatuv paneli havolasi."""
+    uid = message.from_user.id if message.from_user else 0
+    if not is_admin(uid):
+        return await message.answer("⛔ Faqat admin.", parse_mode="HTML")
+    token = live_dash_token()
+    if not token:
+        return await message.answer(
+            "⚠️  <code>LIVE_DASH_TOKEN</code> yoki <code>YORDAMCHI_HUB_SECRET</code> sozlanmagan.",
+            parse_mode="HTML",
+        )
+    url = f"{public_base_url()}/live?token={token}"
+    await message.answer(
+        "📊  <b>OMBOR LIVE panel</b>\n\n"
+        f"<a href=\"{he(url)}\">{he(url)}</a>\n\n"
+        "<i>Har 5 soniyada yangilanadi. Guruhda faqat qisqa status.</i>",
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+
+
 async def cmd_qrprint(message: Message) -> None:
     bot_user = app_context.bot_username
     if not bot_user:
@@ -190,6 +213,7 @@ async def cmd_qrprint(message: Message) -> None:
 router.message.register(cmd_start, Command("start"))
 router.message.register(cmd_zones, Command("zones"))
 router.message.register(cmd_guruh, Command("guruh"))
+router.message.register(cmd_live, Command("live"))
 router.message.register(cmd_zones_menu, F.text == BTN_ZONES_MENU)
 router.message.register(cmd_id, Command("id"))
 router.message.register(cmd_qrprint, Command("qrprint"))

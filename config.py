@@ -80,6 +80,17 @@ def is_admin(user_id: int | None) -> bool:
     return int(user_id) in ids
 
 
+def public_base_url() -> str:
+    url = (os.getenv("PUBLIC_URL") or "").strip().rstrip("/")
+    if url:
+        return url
+    domain = (os.getenv("RAILWAY_PUBLIC_DOMAIN") or "").strip()
+    if domain:
+        return f"https://{domain}"
+    port = (os.getenv("PORT") or "8080").strip() or "8080"
+    return f"http://localhost:{port}"
+
+
 def startup_warnings() -> list[str]:
     s = settings()
     w: list[str] = []
@@ -89,4 +100,10 @@ def startup_warnings() -> list[str]:
         w.append("ADMIN_IDS yo'q — Boshlash hammaga ochiq (test)")
     if not s["group_id"]:
         w.append("GROUP_ID yo'q — faqat guruhdan Boshlash ishlaydi")
+    from live_api import live_dash_token
+
+    if not live_dash_token():
+        w.append("LIVE_DASH_TOKEN yoki YORDAMCHI_HUB_SECRET yo'q — /live panel ishlamaydi")
+    if not (os.getenv("PUBLIC_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN") or "").strip():
+        w.append("PUBLIC_URL/RAILWAY_PUBLIC_DOMAIN yo'q — /live havola to'liq emas")
     return w
