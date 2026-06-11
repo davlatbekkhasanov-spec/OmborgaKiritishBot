@@ -18,6 +18,9 @@ from texts import BTN_FINISH
 from integrations_compact import compact_session_summary
 from ui import final_report_card, group_carrying_stopped, he
 from hub_day_log import save_today_push
+from live_api import snapshot_finished_worker
+from live_day_store import save_finished_worker
+from time_util import now_dt
 from yordamchi_push import push_to_yordamchi_hub, push_to_yordamchi_hub_background, today_iso
 
 router = Router(name="finish")
@@ -54,9 +57,11 @@ async def finish_from_private(message: Message, bot: Bot) -> None:
     if not ok or not sess:
         return await message.answer(f"⚠️  {he(err)}", parse_mode="HTML")
 
-    report = final_report_card(sess)
+    finished_at = now_dt()
+    report = final_report_card(sess, finished_at=finished_at)
     hub_summary = compact_session_summary(sess)
     day = today_iso()
+    save_finished_worker(day=day, snap=snapshot_finished_worker(sess, finished_at=finished_at))
     save_today_push(day=day, tg_id=uid, summary=hub_summary)
     ok, via = await push_to_yordamchi_hub(
         tg_id=uid,

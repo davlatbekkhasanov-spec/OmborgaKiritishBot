@@ -7,8 +7,10 @@ from datetime import datetime
 from typing import Any
 
 import storage
+from live_day_store import list_finished_workers
 from stats import metrics_from_session
 from time_util import ensure_aware, fmt_duration, fmt_duration_short, now_dt
+from yordamchi_push import today_iso
 
 
 def live_dash_token() -> str:
@@ -53,9 +55,15 @@ def _empty_row(seg: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _worker_snapshot(sess: dict[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
-    now = now or now_dt()
-    m = metrics_from_session(sess, now)
+def _worker_snapshot(
+    sess: dict[str, Any],
+    *,
+    now: datetime | None = None,
+    status: str = "active",
+    finished_at: datetime | None = None,
+) -> dict[str, Any]:
+    end = finished_at or now or now_dt()
+    m = metrics_from_session(sess, end)
     trips = [_trip_row(t) for t in sess.get("trips") or []]
     empty = [_empty_row(s) for s in sess.get("empty_segments") or []]
     open_trip = sess.get("active_trip")
@@ -64,7 +72,9 @@ def _worker_snapshot(sess: dict[str, Any], *, now: datetime | None = None) -> di
         "user_id": sess.get("user_id"),
         "full_name": sess.get("full_name") or "Noma'lum",
         "session_id": sess.get("id"),
+        "status": status,
         "start_time": _iso(sess.get("start_time")),
+        "finished_at": _iso(finished_at) if finished_at else None,
         "ish_vaqti_sec": m.process_sec,
         "ish_vaqti": fmt_duration(m.process_sec),
         "reys_count": m.total_trips,
@@ -73,23 +83,42 @@ def _worker_snapshot(sess: dict[str, Any], *, now: datetime | None = None) -> di
         "yuksiz_masofa": int(sess.get("empty_distance_meter", 0) or 0),
         "dam_sec": storage.total_break_sec(sess),
         "dam": fmt_duration(storage.total_break_sec(sess)),
-        "open_trip": bool(open_trip),
+        "open_trip": bool(open_trip) and status == "active",
         "trips": trips,
         "empty_segments": empty,
     }
 
 
+def snapshot_finished_worker(
+    sess: dict[str, Any], *, finished_at: datetime | None = None
+) -> dict[str, Any]:
+    finished_at = finished_at or now_dt()
+    return _worker_snapshot(sess, finished_at=finished_at, status="finished")
+
+
 def build_live_snapshot() -> dict[str, Any]:
     now = now_dt()
-    workers = [_worker_snapshot(s, now=now) for s in storage.active_users()]
-    workers.sort(key=lambda w: (-w["reys_count"], -w["yuk_masofa"], w["full_name"]))
-    total_trips = sum(w["reys_count"] for w in workers)
-    total_dist = sum(w["yuk_masofa"] for w in workers)
+    day = today_iso()
+    active = [_worker_snapshot(s, now=now, status="active") for s in storage.active_users()]
+    finished = list_finished_workers(day)
+    workers = active + finished
+    workers.sort(
+        key=lambda w: (
+            0 if w.get("status") == "active" else 1,
+            -int(w.get("reys_count") or 0),
+            -int(w.get("yuk_masofa") or 0),
+            str(w.get("full_name") or ""),
+        )
+    )
+    total_trips = sum(int(w.get("reys_count") or 0) for w in workers)
+    total_dist = sum(int(w.get("yuk_masofa") or 0) for w in workers)
     return {
         "ok": True,
         "updated_at": _iso(now),
         "display_time": now.strftime("%d.%m.%Y  %H:%M:%S"),
-        "active_count": len(workers),
+        "day": day,
+        "active_count": len(active),
+        "finished_count": len(finished),
         "total_trips": total_trips,
         "total_distance": total_dist,
         "workers": workers,
