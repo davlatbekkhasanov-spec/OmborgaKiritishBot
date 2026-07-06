@@ -87,6 +87,9 @@ async def main() -> None:
         log.exception("omborga hub backfill xato")
 
     try:
+        from telegram_polling_guard import ensure_polling_mode
+
+        await ensure_polling_mode(bot)
         await dp.start_polling(bot)
     finally:
         if http_runner:
