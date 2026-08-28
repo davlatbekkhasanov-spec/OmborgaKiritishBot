@@ -21,6 +21,7 @@ from handlers import setup_routers
 from services.group_check import GroupConfigError, verify_group_access
 from hub_day_log import HUB_DB_PATH, list_today_pushes
 from persist_data import persistence_status_line
+from hub_live_sync import reconcile_hub_live_sessions
 from live_web import start_live_server
 from storage import active_users
 from yordamchi_push import push_session_start_background, push_to_yordamchi_hub, today_iso
@@ -102,6 +103,7 @@ async def main() -> None:
         active_n = len(active_users())
         if active_n:
             log.info("Live hub sync: %s faol reys xodimi", active_n)
+        reconcile_hub_live_sessions()
     except Exception:
         log.exception("omborga live hub sync xato")
 
