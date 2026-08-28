@@ -21,7 +21,12 @@ from hub_day_log import save_today_push
 from live_api import snapshot_finished_worker
 from live_day_store import save_finished_worker
 from time_util import now_dt
-from yordamchi_push import push_to_yordamchi_hub, push_to_yordamchi_hub_background, today_iso
+from yordamchi_push import (
+    push_session_end_background,
+    push_to_yordamchi_hub,
+    push_to_yordamchi_hub_background,
+    today_iso,
+)
 
 router = Router(name="finish")
 log = logging.getLogger(__name__)
@@ -77,6 +82,7 @@ async def finish_from_private(message: Message, bot: Bot) -> None:
             summary=hub_summary,
             day_iso=day,
         )
+    push_session_end_background(tg_id=uid, bot_key="omborga", activity_type="omborga")
     group_ok = await _send_group_carrying_stopped(bot, sess)
 
     extra = ""

@@ -22,7 +22,8 @@ from services.group_check import GroupConfigError, verify_group_access
 from hub_day_log import HUB_DB_PATH, list_today_pushes
 from persist_data import persistence_status_line
 from live_web import start_live_server
-from yordamchi_push import push_to_yordamchi_hub, today_iso
+from storage import active_users
+from yordamchi_push import push_session_start_background, push_to_yordamchi_hub, today_iso
 
 logging.basicConfig(
     level=logging.INFO,
@@ -85,6 +86,24 @@ async def main() -> None:
             log.info("Omborga hub backfill: %s/%s for %s", sent, len(rows), day)
     except Exception:
         log.exception("omborga hub backfill xato")
+
+    try:
+        for sess in active_users():
+            uid = int(sess.get("user_id") or 0)
+            if not uid:
+                continue
+            push_session_start_background(
+                tg_id=uid,
+                bot_key="omborga",
+                user_name=sess.get("full_name") or "",
+                activity_type="omborga",
+                metadata={"session_id": int(sess.get("id") or 0)},
+            )
+        active_n = len(active_users())
+        if active_n:
+            log.info("Live hub sync: %s faol reys xodimi", active_n)
+    except Exception:
+        log.exception("omborga live hub sync xato")
 
     try:
         from telegram_polling_guard import ensure_polling_mode

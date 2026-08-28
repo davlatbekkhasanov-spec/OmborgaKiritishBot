@@ -14,6 +14,7 @@ from keyboards import private_keyboard_for
 from services.group_resolve import resolve_group_chat_id
 from texts import BTN_START_MOVE
 from ui import group_carrying_started, he, session_started_card
+from yordamchi_push import push_session_start_background
 
 router = Router(name="start_flow")
 log = logging.getLogger(__name__)
@@ -43,6 +44,13 @@ async def _activate_and_notify(
         session_started_card(name=name, session_id=sess["id"]),
         parse_mode="HTML",
         reply_markup=private_keyboard_for(user_id),
+    )
+    push_session_start_background(
+        tg_id=user_id,
+        bot_key="omborga",
+        user_name=name,
+        activity_type="omborga",
+        metadata={"session_id": int(sess["id"])},
     )
 
 
